@@ -1,0 +1,42 @@
+{
+  "name": "just-read-it",
+  "version": "0.1.0",
+  "description": "A web reader that makes long articles easier and more enjoyable to read.”",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "wxt prepare",
+    "format": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "build": "npm run build:firefox && npm run build:chrome",
+    "build:chrome": "wxt build -b chrome --mv3",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "dev:chrome": "wxt",
+    "zip": "npm run zip:firefox && npm run zip:chrome",
+    "zip:chrome": "wxt zip -b chrome --mv3",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@eslint/css": "^1.4.0",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.9.0",
+    "happy-dom": "^20.11.2",
+    "jiti": "^2.7.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.66.0",
+    "vitest": "^4.1.10",
+    "wxt": "^0.21.1"
+  },
+  "dependencies": {
+    "@zxing/browser": "^0.1.5"
+  }
+}

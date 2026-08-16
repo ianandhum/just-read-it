@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Just Read It</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="jri-popup">
+      <header class="jri-heading">
+        <div>
+          <p class="jri-eyebrow">Just Read It</p>
+          <h1>Finish long articles</h1>
+        </div>
+        <span id="status" class="jri-status">Off</span>
+      </header>
+      <section class="jri-card jri-reading-card">
+        <button id="toggle" class="jri-btn">Enable Reading Mode</button>
+        <p class="jri-card-description">Follow one sentence at a time, use RSVP for focused word-by-word reading, or listen as you read.</p>
+        <div id="content-candidates-card" class="jri-reading-section" hidden aria-labelledby="content-candidates-heading">
+          <h2 id="content-candidates-heading">Reading section</h2>
+          <p class="jri-card-description">Choose the section to read. Your choice is remembered for this page.</p>
+          <label class="jri-option" for="content-candidates">Content candidate</label>
+          <select id="content-candidates" class="jri-select"></select>
+        </div>
+      </section>
+      <section class="jri-card jri-dashboard-card" aria-labelledby="dashboard-heading">
+        <h2 id="dashboard-heading">Keep your reading history</h2>
+        <p id="dashboard-description" class="jri-card-description">Resume articles, see time read, and save favorites. This stays on your device.</p>
+        <button id="enable-dashboard" class="jri-secondary-btn jri-onboarding-btn" type="button">Keep Reading History</button>
+        <div id="dashboard-actions" class="jri-dashboard-actions" hidden>
+          <button id="open-dashboard" class="jri-secondary-btn" type="button">Open Dashboard</button>
+          <button id="reset-all" class="jri-danger-btn" type="button">Delete All Data</button>
+          <div id="reset-confirmation" class="jri-reset-confirmation" hidden role="alertdialog" aria-labelledby="reset-confirmation-label">
+            <p id="reset-confirmation-label">Delete all saved reading data? Your reading settings will be kept.</p>
+            <div class="jri-reset-confirmation-actions">
+              <button id="cancel-reset" class="jri-secondary-btn" type="button">Cancel</button>
+              <button id="confirm-reset" class="jri-danger-btn" type="button">Delete data</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <details class="jri-settings-section">
+        <summary>More settings</summary>
+        <div class="jri-settings-body">
+          <section aria-labelledby="read-aloud-heading">
+            <h2 id="read-aloud-heading" class="jri-group-label">Read Aloud</h2>
+            <label class="jri-option" for="voice">Voice</label>
+            <select id="voice" class="jri-select">
+              <option value="">Default voice</option>
+            </select>
+            <label class="jri-option" for="rate">
+              Voice speed
+              <output id="rate-value">1.0x</output>
+            </label>
+            <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" />
+          </section>
+          <section aria-labelledby="guided-reading-heading">
+            <h2 id="guided-reading-heading" class="jri-group-label">Guided Reading</h2>
+            <label class="jri-option" for="guided-rate">
+              Guided speed
+              <output id="guided-rate-value">1.0x</output>
+            </label>
+            <input id="guided-rate" type="range" min="0.5" max="3" step="0.1" value="1" />
+            <label class="jri-option" for="advance-delay">
+              Sentence delay
+              <output id="advance-delay-value">0.6s</output>
+            </label>
+            <input id="advance-delay" type="range" min="0" max="3000" step="100" value="600" />
+          </section>
+        </div>
+      </details>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

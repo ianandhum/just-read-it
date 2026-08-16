@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Just Read It - Dashboard</title>
+    <link rel="icon" type="image/png" href="/icons/just-read-it-32.png" />
+    <link rel="stylesheet" href="./dashboard.css" />
+  </head>
+  <body>
+    <main class="dashboard">
+      <header class="header">
+        <div class="brand">
+          <img class="brand-mark" src="/icons/just-read-it.png" alt="" />
+          <div>
+            <p class="eyebrow">Just Read It</p>
+            <h1>Reading Stats</h1>
+          </div>
+        </div>
+      </header>
+      <p class="intro">Pick up where you left off, explore your reading history, and manage your data.</p>
+      <nav class="tabs" aria-label="Dashboard sections" role="tablist">
+        <button id="jump-back-tab" class="tab" type="button" role="tab" aria-selected="true" aria-controls="jump-back-panel">
+          Overview
+        </button>
+        <button id="history-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="history-panel">History</button>
+        <button id="settings-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="settings-panel">
+          Settings
+        </button>
+      </nav>
+      <section id="jump-back-panel" class="tab-panel" role="tabpanel" aria-labelledby="jump-back-tab">
+        <div class="overview-toolbar">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <p class="section-description">Your reading activity for the selected period.</p>
+          </div>
+          <label class="range-selector" for="overview-range">
+            <span>Time range</span>
+            <select id="overview-range">
+              <option value="today">Today</option>
+              <option value="week" selected>This Week</option>
+              <option value="month">This Month</option>
+              <option value="three-months">Last Three Months</option>
+              <option value="all">All Time</option>
+            </select>
+          </label>
+        </div>
+        <section class="summary" aria-label="Reading progress summary">
+          <article class="stat-card">
+            <div class="stat-heading"><span>Completion</span></div>
+            <strong id="completion-percent">0%</strong>
+            <p>Across all saved pages</p>
+          </article>
+          <article class="stat-card stat-card-time">
+            <div class="stat-heading"><span>Time engaged</span></div>
+            <strong id="time-spent">0m</strong>
+            <div class="time-breakdown" aria-label="Time engaged breakdown">
+              <span class="time-breakdown-item">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 0-1 5H20" />
+                  <path d="M8 11h8" />
+                  <path d="M8 7h6" />
+                </svg>
+                <span>
+                  &nbsp;
+                  <strong id="reading-time-breakdown">0m</strong>
+                </span>
+              </span>
+              <span class="time-breakdown-item">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 0-1 5H20" />
+                  <path d="M8 12v-2a4 4 0 0 1 8 0v2" />
+                  <circle cx="15" cy="12" r="1" />
+                  <circle cx="9" cy="12" r="1" />
+                </svg>
+                <span>
+                  &nbsp;
+                  <strong id="listening-time-breakdown">0m</strong>
+                </span>
+              </span>
+            </div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-heading"><span>Pages read</span></div>
+            <strong id="pages-completed">0</strong>
+            <p>Finished articles</p>
+          </article>
+          <article class="stat-card">
+            <div class="stat-heading"><span>In progress</span></div>
+            <strong id="pages-progress">0</strong>
+            <p>Articles to return to</p>
+          </article>
+        </section>
+        <section class="card chart-section" aria-labelledby="activity-heading">
+          <div class="card-header section-heading">
+            <div>
+              <p class="eyebrow">Activity</p>
+              <h2 id="activity-heading">Engagement time</h2>
+              <p id="activity-description" class="section-description">Your daily reading and listening activity.</p>
+            </div>
+            <span id="chart-total" class="badge"></span>
+          </div>
+          <div class="card-content">
+            <div id="activity-chart" class="activity-chart" role="img" aria-label="Daily reading and listening time"></div>
+          </div>
+        </section>
+        <section id="jump-back-section" class="card jump-back-section" aria-labelledby="jump-back-heading" hidden>
+          <div class="card-header">
+            <p class="eyebrow">Continue reading</p>
+            <h2 id="jump-back-heading">Jump back in</h2>
+            <p class="section-description">Articles you'd want to return back to.</p>
+          </div>
+          <div class="card-content"><ol id="jump-back-pages" class="reading-page-list jump-back-list"></ol></div>
+        </section>
+        <section id="starred-section" class="card starred-section" aria-labelledby="starred-heading" hidden>
+          <div class="card-header">
+            <p class="eyebrow">Favorites</p>
+            <h2 id="starred-heading">Starred articles</h2>
+            <p class="section-description">Articles you've starred for later.</p>
+          </div>
+          <div class="card-content"><ol id="starred-pages" class="reading-page-list jump-back-list"></ol></div>
+        </section>
+      </section>
+      <section id="history-panel" class="tab-panel" role="tabpanel" aria-labelledby="history-tab" hidden>
+        <section class="card pages-section" aria-labelledby="pages-heading">
+          <div class="card-header section-heading">
+            <div>
+              <p class="eyebrow">Library</p>
+              <h2 id="pages-heading">History</h2>
+              <p class="section-description">All saved pages, most recently updated first.</p>
+            </div>
+            <span id="page-count" class="badge"></span>
+          </div>
+          <div class="card-content">
+            <label class="history-search" for="history-search">
+              <span>Search history</span>
+              <input id="history-search" type="search" placeholder="Search titles or URLs" autocomplete="off" />
+            </label>
+            <label class="history-filter">
+              <input id="history-unread-only" type="checkbox" />
+              <span>Show only unread articles</span>
+            </label>
+            <p id="empty" class="empty" hidden>No saved reading progress yet. Enable Just Read It on a long-form page to begin.</p>
+            <p id="search-empty" class="empty" hidden>No saved pages match your filters.</p>
+            <ol id="pages" class="reading-page-list"></ol>
+            <nav id="history-pagination" class="pagination" aria-label="History pages" hidden>
+              <button id="history-previous" class="pagination-button" type="button">Previous</button>
+              <span id="history-page" class="pagination-status"></span>
+              <button id="history-next" class="pagination-button" type="button">Next</button>
+            </nav>
+          </div>
+        </section>
+      </section>
+      <section id="settings-panel" class="tab-panel" role="tabpanel" aria-labelledby="settings-tab" hidden>
+        <section class="settings-section" aria-labelledby="data-transfer-heading">
+          <div>
+            <p class="eyebrow">Backup</p>
+            <h2 id="data-transfer-heading">Import or export data</h2>
+            <p class="section-description">Download your reading progress and settings, or restore them from a backup file.</p>
+          </div>
+          <div class="settings-actions">
+            <button id="export-data" class="button" type="button">Export Data</button>
+            <label class="button" for="import-data">Import Data</label>
+            <input id="import-data" type="file" accept="application/json,.json" hidden />
+          </div>
+          <p id="import-status" class="settings-status" role="status" hidden></p>
+        </section>
+        <section class="danger-zone" aria-labelledby="danger-zone-heading">
+          <div>
+            <p class="eyebrow">Danger zone</p>
+            <h2 id="danger-zone-heading">Delete all data</h2>
+            <p class="section-description">Permanently remove all saved reading progress. Your settings will be kept.</p>
+          </div>
+          <button id="reset-all" class="button button-destructive" type="button">Delete All Data</button>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="./dashboard.ts"></script>
+  </body>
+</html>
