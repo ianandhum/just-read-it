@@ -5,16 +5,19 @@ import {
   importData,
   listenTimeByDay,
   loadAllPageStates,
+  loadSettings,
   readingTimeByDay,
   savePageState,
+  saveSettings,
   setPageStarred,
   summarizeReadingProgress,
 } from '@/lib/storage';
-import type { PageState, RuntimeMessage } from '@/lib/types';
+import { DEFAULT_SETTINGS, type JriSettings, type PageState, type RuntimeMessage } from '@/lib/types';
 import { CLEAR_READING_DATA_CONFIRMATION, withDisabled } from '@/lib/actions';
-import { formatDuration } from '@/lib/format';
+import { formatDuration, formatSeconds } from '@/lib/format';
 import { rangesToReadIds } from '@/lib/progress_share';
 import { createSvg } from '@/lib/web/svg';
+import { getReadableVoices } from '@/lib/voices';
 
 // DOM IDs
 const pagesElement = document.getElementById('pages') as HTMLOListElement;
@@ -37,8 +40,34 @@ const historySearchElement = document.getElementById('history-search') as HTMLIn
 const historyUnreadOnlyElement = document.getElementById('history-unread-only') as HTMLInputElement;
 const overviewRangeElement = document.getElementById('overview-range') as HTMLSelectElement;
 const activityDescriptionElement = document.getElementById('activity-description') as HTMLParagraphElement;
+const overviewTrackingPromptElement = document.getElementById('overview-tracking-prompt') as HTMLElement;
+const historyTrackingPromptElement = document.getElementById('history-tracking-prompt') as HTMLElement;
+const overviewContentElements = Array.from(document.querySelectorAll<HTMLElement>('.summary, .chart-section'));
+const historyContentElements = Array.from(
+  document.querySelectorAll<HTMLElement>('.history-search, .history-filter, #empty, #search-empty, #pages, #history-pagination'),
+);
+const enableTrackingElements = Array.from(document.querySelectorAll<HTMLButtonElement>('.enable-tracking'));
 const tabElements = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
 const panelElements = Array.from(document.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
+const preview = document.getElementById('article-preview') as HTMLElement;
+const previewDimming = document.getElementById('preview-dimming') as HTMLInputElement;
+const resetSettingsElement = document.getElementById('reset-settings') as HTMLButtonElement;
+const dimOpacity = document.getElementById('dim-opacity') as HTMLInputElement;
+const dimOpacityValue = document.getElementById('dim-opacity-value') as HTMLOutputElement;
+const currentColor = document.getElementById('current-highlight-color') as HTMLInputElement;
+const readColor = document.getElementById('read-highlight-color') as HTMLInputElement;
+const currentWordColor = document.getElementById('current-word-background-color') as HTMLInputElement;
+const colorMode = document.getElementById('color-mode') as HTMLSelectElement;
+const currentColorLabel = document.getElementById('current-color-label') as HTMLElement;
+const readColorLabel = document.getElementById('read-color-label') as HTMLElement;
+const currentWordColorLabel = document.getElementById('current-word-color-label') as HTMLElement;
+const guidedRate = document.getElementById('guided-rate') as HTMLInputElement;
+const guidedRateValue = document.getElementById('guided-rate-value') as HTMLOutputElement;
+const advanceDelay = document.getElementById('advance-delay') as HTMLInputElement;
+const advanceDelayValue = document.getElementById('advance-delay-value') as HTMLOutputElement;
+const voice = document.getElementById('voice') as HTMLSelectElement;
+const rate = document.getElementById('rate') as HTMLInputElement;
+const rateValue = document.getElementById('rate-value') as HTMLOutputElement;
 
 const HISTORY_PAGE_SIZE = 15;
 let historyPage = 1;
@@ -48,6 +77,8 @@ type OverviewRange = 'today' | 'week' | 'month' | 'three-months' | 'all';
 let overviewRange: OverviewRange = 'week';
 let activeActionsElement: HTMLElement | null = null;
 let closeActiveActionsMenu: (() => void) | null = null;
+let settings: JriSettings;
+let saveSettingsTimer: number | undefined;
 
 const TIME_SECONDS_DAY = 24 * 60 * 60 * 1000;
 
@@ -65,6 +96,79 @@ function setImportStatus(message: string, error = false): void {
   importStatusElement.textContent = message;
   importStatusElement.hidden = false;
   importStatusElement.dataset.error = String(error);
+}
+
+function isDarkMode(): boolean {
+  return settings.colorMode === 'dark' || (settings.colorMode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
+function renderSettingsPreview(): void {
+  const dark = isDarkMode();
+  preview.style.setProperty('--preview-dim-opacity', String(settings.dimOpacity));
+  preview.style.setProperty('--preview-current', dark ? settings.darkCurrentHighlightColor : settings.currentHighlightColor);
+  preview.style.setProperty('--preview-read', dark ? settings.darkReadHighlightColor : settings.readHighlightColor);
+  preview.style.setProperty('--preview-word', dark ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor);
+  preview.classList.toggle('dark-preview', dark);
+  preview.classList.toggle('dimming-disabled', !previewDimming.checked);
+}
+
+function queueSettingsSave(patch: Partial<JriSettings>): void {
+  settings = { ...settings, ...patch };
+  renderSettingsPreview();
+  window.clearTimeout(saveSettingsTimer);
+  saveSettingsTimer = window.setTimeout(() => {
+    // Keep updates responsive without writing each range-slider position.
+    void saveSettings(settings).then((next) => {
+      settings = next;
+    });
+  }, 150);
+}
+
+function populateVoices(): void {
+  const selected = settings.voiceURI ?? '';
+  voice.replaceChildren(new Option('Default voice', ''));
+  for (const item of getReadableVoices(selected || undefined)) voice.add(new Option(`${item.name} (${item.lang})`, item.voiceURI));
+  voice.value = selected;
+  if (voice.value !== selected) voice.value = '';
+}
+
+function renderSettingsForm(): void {
+  dimOpacity.value = String(Math.round(settings.dimOpacity * 100));
+  dimOpacityValue.textContent = `${dimOpacity.value}%`;
+  const dark = isDarkMode();
+  colorMode.value = settings.colorMode;
+  currentColor.value = dark ? settings.darkCurrentHighlightColor : settings.currentHighlightColor;
+  readColor.value = dark ? settings.darkReadHighlightColor : settings.readHighlightColor;
+  currentWordColor.value = dark ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor;
+  currentColorLabel.textContent = `Current sentence (${dark ? 'dark' : 'light'})`;
+  readColorLabel.textContent = `Completed sentence (${dark ? 'dark' : 'light'})`;
+  currentWordColorLabel.textContent = `Current word (${dark ? 'dark' : 'light'})`;
+  guidedRate.value = String(settings.guidedRate);
+  guidedRateValue.textContent = `${settings.guidedRate.toFixed(1)}x`;
+  advanceDelay.value = String(settings.guidedAdvanceDelay);
+  advanceDelayValue.textContent = formatSeconds(settings.guidedAdvanceDelay);
+  rate.value = String(settings.rate);
+  rateValue.textContent = `${settings.rate.toFixed(1)}x`;
+  populateVoices();
+  renderSettingsPreview();
+}
+
+function activeTabId(): string {
+  const id = window.location.hash.slice(1);
+  return panelElements.some((panel) => panel.id === id) ? id : 'jump-back-panel';
+}
+
+function selectTab(panelId: string): void {
+  for (const tab of tabElements) tab.setAttribute('aria-selected', String(tab.getAttribute('aria-controls') === panelId));
+  for (const panel of panelElements) panel.hidden = panel.id !== panelId;
+}
+
+function renderTrackingUi(): void {
+  const enabled = settings.readingHistoryEnabled;
+  overviewTrackingPromptElement.hidden = enabled;
+  historyTrackingPromptElement.hidden = enabled;
+  for (const element of overviewContentElements) element.hidden = !enabled;
+  for (const element of historyContentElements) element.hidden = !enabled;
 }
 
 function hostname(url: string): string {
@@ -625,10 +729,81 @@ overviewRangeElement.addEventListener('change', () => {
 for (const tab of tabElements) {
   tab.addEventListener('click', () => {
     const panelId = tab.getAttribute('aria-controls');
-    for (const candidate of tabElements) candidate.setAttribute('aria-selected', String(candidate === tab));
-    for (const panel of panelElements) panel.hidden = panel.id !== panelId;
+    if (panelId) window.location.hash = panelId;
   });
 }
+
+window.addEventListener('hashchange', () => selectTab(activeTabId()));
+
+for (const button of enableTrackingElements) {
+  button.addEventListener('click', async () => {
+    await withDisabled(button, async () => {
+      settings = await saveSettings({ readingHistoryEnabled: true });
+      renderTrackingUi();
+      await render();
+    });
+  });
+}
+
+dimOpacity.addEventListener('input', () => {
+  dimOpacityValue.textContent = `${dimOpacity.value}%`;
+  queueSettingsSave({ dimOpacity: Number(dimOpacity.value) / 100 });
+});
+currentColor.addEventListener('input', () =>
+  queueSettingsSave(isDarkMode() ? { darkCurrentHighlightColor: currentColor.value } : { currentHighlightColor: currentColor.value }),
+);
+readColor.addEventListener('input', () =>
+  queueSettingsSave(isDarkMode() ? { darkReadHighlightColor: readColor.value } : { readHighlightColor: readColor.value }),
+);
+currentWordColor.addEventListener('input', () =>
+  queueSettingsSave(
+    isDarkMode() ? { darkCurrentWordBackgroundColor: currentWordColor.value } : { currentWordBackgroundColor: currentWordColor.value },
+  ),
+);
+colorMode.addEventListener('change', () => {
+  queueSettingsSave({ colorMode: colorMode.value as JriSettings['colorMode'] });
+  renderSettingsForm();
+});
+guidedRate.addEventListener('input', () => {
+  const value = Number(guidedRate.value);
+  guidedRateValue.textContent = `${value.toFixed(1)}x`;
+  queueSettingsSave({ guidedRate: value });
+});
+advanceDelay.addEventListener('input', () => {
+  const value = Number(advanceDelay.value);
+  advanceDelayValue.textContent = formatSeconds(value);
+  queueSettingsSave({ guidedAdvanceDelay: value });
+});
+rate.addEventListener('input', () => {
+  const value = Number(rate.value);
+  rateValue.textContent = `${value.toFixed(1)}x`;
+  queueSettingsSave({ rate: value });
+});
+voice.addEventListener('change', () => queueSettingsSave({ voiceURI: voice.value || null }));
+previewDimming.addEventListener('change', renderSettingsPreview);
+speechSynthesis?.addEventListener('voiceschanged', populateVoices);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (settings.colorMode === 'system') renderSettingsForm();
+});
+resetSettingsElement.addEventListener('click', async () => {
+  if (!window.confirm('Reset the settings shown on this page?')) return;
+  window.clearTimeout(saveSettingsTimer);
+  settings = await saveSettings({
+    dimOpacity: DEFAULT_SETTINGS.dimOpacity,
+    currentHighlightColor: DEFAULT_SETTINGS.currentHighlightColor,
+    readHighlightColor: DEFAULT_SETTINGS.readHighlightColor,
+    colorMode: DEFAULT_SETTINGS.colorMode,
+    darkCurrentHighlightColor: DEFAULT_SETTINGS.darkCurrentHighlightColor,
+    darkReadHighlightColor: DEFAULT_SETTINGS.darkReadHighlightColor,
+    currentWordBackgroundColor: DEFAULT_SETTINGS.currentWordBackgroundColor,
+    darkCurrentWordBackgroundColor: DEFAULT_SETTINGS.darkCurrentWordBackgroundColor,
+    guidedRate: DEFAULT_SETTINGS.guidedRate,
+    guidedAdvanceDelay: DEFAULT_SETTINGS.guidedAdvanceDelay,
+    rate: DEFAULT_SETTINGS.rate,
+    voiceURI: DEFAULT_SETTINGS.voiceURI,
+  });
+  renderSettingsForm();
+});
 
 resetElement.addEventListener('click', async () => {
   if (!window.confirm(CLEAR_READING_DATA_CONFIRMATION)) return;
@@ -661,6 +836,8 @@ importDataElement.addEventListener('change', async () => {
   try {
     const data: unknown = JSON.parse(await file.text());
     await importData(data);
+    settings = await loadSettings();
+    renderTrackingUi();
     setImportStatus('Your reading progress and settings have been imported.');
     await render();
   } catch (error) {
@@ -669,7 +846,18 @@ importDataElement.addEventListener('change', async () => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && Object.keys(changes).some((key) => key.startsWith('jri:'))) void render();
+  if (area !== 'local' || !Object.keys(changes).some((key) => key.startsWith('jri:'))) return;
+  void loadSettings().then((next) => {
+    settings = next;
+    renderTrackingUi();
+    void render();
+  });
 });
 
-void render();
+selectTab(activeTabId());
+void loadSettings().then((next) => {
+  settings = next;
+  renderSettingsForm();
+  renderTrackingUi();
+  void render();
+});

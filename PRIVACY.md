@@ -12,7 +12,7 @@ Just Read It stores the following information in browser extension storage:
 - Reading progress, including the current sentence, completed sentences, and the time spent reading.
 - Reading preferences, such as reading speed, selected voice, and Guided Reading settings.
 
-Reading progress, page URLs, titles, and reading time are stored locally in the browser. Settings and per-site preferences, such as selected content section and font size, may use the browser's sync storage when you have browser sync enabled. This information is used only to restore reading progress, show reading statistics, and apply your preferences. You can remove an individual saved page or delete all saved reading data from the extension dashboard or popup.
+Reading progress, page URLs, titles, and reading time are stored locally in the browser. Settings and per-site preferences, such as selected content section and font size, may use the browser's sync storage when you have browser sync enabled. This information is used only to restore reading progress, show reading statistics, and apply your preferences. You can remove an individual saved page or delete all saved reading data from the extension home page or popup.
 
 ## Data Sharing
 

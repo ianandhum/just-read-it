@@ -1,31 +1,22 @@
-import type { ContentCandidateInfo, RuntimeMessage, TabState, ToggleResult } from '@/lib/types';
-import { clearAllPageStates, loadSettings, saveSettings } from '@/lib/storage';
-import { getReadableVoices } from '@/lib/voices';
+import type { RuntimeMessage, TabState, ToggleResult } from '@/lib/types';
+import { loadSettings, saveSettings } from '@/lib/storage';
+import { listenTimeByDay, loadAllPageStates, readingTimeByDay } from '@/lib/storage';
 import { withDisabled } from '@/lib/actions';
-import { formatSeconds } from '@/lib/format';
+import { formatDuration } from '@/lib/format';
 
 const toggleElement = document.getElementById('toggle') as HTMLButtonElement | null;
 const statusElement = document.getElementById('status');
-const voiceElement = document.getElementById('voice') as HTMLSelectElement | null;
-const rateElement = document.getElementById('rate') as HTMLInputElement | null;
-const rateValueElement = document.getElementById('rate-value');
-const guidedRateElement = document.getElementById('guided-rate') as HTMLInputElement | null;
-const guidedRateValueElement = document.getElementById('guided-rate-value');
-const advanceDelayElement = document.getElementById('advance-delay') as HTMLInputElement | null;
-const advanceDelayValueElement = document.getElementById('advance-delay-value');
-const dashboardElement = document.getElementById('open-dashboard') as HTMLButtonElement | null;
-const resetAllElement = document.getElementById('reset-all') as HTMLButtonElement | null;
-const resetConfirmationElement = document.getElementById('reset-confirmation');
-const cancelResetElement = document.getElementById('cancel-reset') as HTMLButtonElement | null;
-const confirmResetElement = document.getElementById('confirm-reset') as HTMLButtonElement | null;
-const dashboardActionsElement = document.getElementById('dashboard-actions');
-const enableDashboardElement = document.getElementById('enable-dashboard') as HTMLButtonElement | null;
-const dashboardDescriptionElement = document.getElementById('dashboard-description');
-const contentCandidatesCardElement = document.getElementById('content-candidates-card');
-const contentCandidatesElement = document.getElementById('content-candidates') as HTMLSelectElement | null;
+const openSettingsElement = document.getElementById('open-settings') as HTMLButtonElement | null;
+const homeElement = document.getElementById('open-home') as HTMLButtonElement | null;
+const historyActionsElement = document.getElementById('history-actions');
+const enableHistoryElement = document.getElementById('enable-history') as HTMLButtonElement | null;
+const historyDescriptionElement = document.getElementById('history-description');
+const todayTotalElement = document.getElementById('today-total') as HTMLElement;
+const todayReadingElement = document.getElementById('today-reading') as HTMLElement;
+const todayListeningElement = document.getElementById('today-listening') as HTMLElement;
+const todayChartElement = document.getElementById('today-chart') as HTMLElement;
 
 let currentEnabled = false;
-let configuredVoiceURI: string | null = null;
 let stateRevision = 0;
 let toggleInFlight = false;
 
@@ -43,12 +34,32 @@ function applyUi(enabled: boolean): void {
   if (statusElement) statusElement.textContent = enabled ? 'On' : 'Off';
 }
 
-function applyProgressDashboardUi(enabled: boolean): void {
-  if (dashboardActionsElement) dashboardActionsElement.hidden = !enabled;
-  if (enableDashboardElement) enableDashboardElement.hidden = enabled;
-  if (dashboardDescriptionElement) {
-    dashboardDescriptionElement.textContent = 'Resume articles and review your reading time and progress on this device.';
+function applyReadingHistoryUi(enabled: boolean): void {
+  if (historyActionsElement) historyActionsElement.hidden = !enabled;
+  if (enableHistoryElement) enableHistoryElement.hidden = enabled;
+  if (historyDescriptionElement) {
+    historyDescriptionElement.textContent = 'Resume articles and review your reading time.';
   }
+}
+
+async function renderTodaySummary(): Promise<void> {
+  const states = await loadAllPageStates();
+  const reading = readingTimeByDay(states, 1)[0]?.timeSpentMs ?? 0;
+  const listening = listenTimeByDay(states, 1)[0]?.timeSpentMs ?? 0;
+  const total = reading + listening;
+  todayTotalElement.textContent = formatDuration(total);
+  todayReadingElement.textContent = formatDuration(reading);
+  todayListeningElement.textContent = formatDuration(listening);
+  todayChartElement.replaceChildren();
+  if (total === 0) return;
+
+  const readingBar = document.createElement('span');
+  readingBar.className = 'jri-today-reading-bar';
+  readingBar.style.width = `${(reading / total) * 100}%`;
+  const listeningBar = document.createElement('span');
+  listeningBar.className = 'jri-today-listening-bar';
+  listeningBar.style.width = `${(listening / total) * 100}%`;
+  todayChartElement.append(readingBar, listeningBar);
 }
 
 function showError(message: string): void {
@@ -67,36 +78,6 @@ function toggleErrorMessage(error: ToggleResult['error']): string {
   return 'Action failed. Try again.';
 }
 
-function applyContentCandidates(candidates: ContentCandidateInfo[], enabled = currentEnabled): void {
-  if (!contentCandidatesCardElement || !contentCandidatesElement) return;
-  if (!enabled) {
-    contentCandidatesCardElement.hidden = true;
-    return;
-  }
-  contentCandidatesCardElement.hidden = candidates.length < 2;
-  contentCandidatesElement.replaceChildren();
-  for (const candidate of candidates) {
-    const option = document.createElement('option');
-    option.value = candidate.id;
-    option.textContent = `${candidate.label} (${candidate.confidence}% match)`;
-    option.selected = candidate.selected;
-    contentCandidatesElement.append(option);
-  }
-}
-
-function applyVoices(): void {
-  if (!voiceElement) return;
-  const selected = voiceElement.value || configuredVoiceURI || '';
-  voiceElement.replaceChildren(new Option('Default voice', ''));
-  for (const item of getReadableVoices(selected || undefined)) voiceElement.add(new Option(`${item.name} (${item.lang})`, item.voiceURI));
-  voiceElement.value = selected;
-  if (voiceElement.value !== selected) voiceElement.value = '';
-}
-
-function loadVoicesWhenIdle(): void {
-  window.setTimeout(applyVoices, 0);
-}
-
 async function init(): Promise<void> {
   let enabled = false;
   try {
@@ -104,20 +85,13 @@ async function init(): Promise<void> {
       type: 'UI_GET_STATE',
     } satisfies RuntimeMessage)) as { tab: TabState } | undefined;
     enabled = res?.tab.enabled ?? false;
-    applyContentCandidates(res?.tab.contentCandidates ?? [], enabled);
   } catch (err) {
     console.error('[Just Read It] GET_STATE failed', err);
   }
   applyUi(enabled);
   const settings = await loadSettings();
-  applyProgressDashboardUi(settings.progressDashboardEnabled);
-  if (rateElement) rateElement.value = String(settings.rate);
-  if (rateValueElement) rateValueElement.textContent = `${settings.rate.toFixed(1)}x`;
-  configuredVoiceURI = settings.voiceURI;
-  if (guidedRateElement) guidedRateElement.value = String(settings.guidedRate);
-  if (guidedRateValueElement) guidedRateValueElement.textContent = `${settings.guidedRate.toFixed(1)}x`;
-  if (advanceDelayElement) advanceDelayElement.value = String(settings.guidedAdvanceDelay);
-  if (advanceDelayValueElement) advanceDelayValueElement.textContent = formatSeconds(settings.guidedAdvanceDelay);
+  applyReadingHistoryUi(settings.readingHistoryEnabled);
+  if (settings.readingHistoryEnabled) await renderTodaySummary();
 }
 
 async function refreshState(): Promise<void> {
@@ -126,75 +100,36 @@ async function refreshState(): Promise<void> {
     const res = (await browser.runtime.sendMessage({ type: 'UI_GET_STATE' } satisfies RuntimeMessage)) as { tab: TabState } | undefined;
     if (toggleInFlight || revision !== stateRevision) return;
     applyUi(res?.tab.enabled ?? false);
-    applyContentCandidates(res?.tab.contentCandidates ?? [], res?.tab.enabled ?? false);
   } catch (err) {
     console.log('[Just Read It] unable to send message:', err);
   }
 }
 
-speechSynthesis?.addEventListener('voiceschanged', loadVoicesWhenIdle);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) void refreshState();
 });
 window.addEventListener('focus', () => {
   void refreshState();
 });
-voiceElement?.addEventListener('change', () => {
-  configuredVoiceURI = voiceElement.value || null;
-  void saveSettings({ voiceURI: configuredVoiceURI });
+openSettingsElement?.addEventListener('click', async () => {
+  await browser.runtime.openOptionsPage();
+  closePopup();
 });
-voiceElement?.addEventListener('focus', loadVoicesWhenIdle, { once: true });
-rateElement?.addEventListener('input', () => {
-  const value = Number(rateElement.value);
-  if (rateValueElement) rateValueElement.textContent = `${value.toFixed(1)}x`;
-  void saveSettings({ rate: value });
-});
-guidedRateElement?.addEventListener('input', () => {
-  const value = Number(guidedRateElement.value);
-  if (guidedRateValueElement) guidedRateValueElement.textContent = `${value.toFixed(1)}x`;
-  void saveSettings({ guidedRate: value });
-});
-advanceDelayElement?.addEventListener('input', () => {
-  const value = Number(advanceDelayElement.value);
-  if (advanceDelayValueElement) advanceDelayValueElement.textContent = formatSeconds(value);
-  void saveSettings({ guidedAdvanceDelay: value });
-});
-contentCandidatesElement?.addEventListener('change', async () => {
-  await browser.runtime.sendMessage({
-    type: 'UI_SELECT_CANDIDATE',
-    candidateId: contentCandidatesElement.value,
-  } satisfies RuntimeMessage);
-  window.close();
-});
-enableDashboardElement?.addEventListener('click', async () => {
-  await withDisabled(enableDashboardElement, async () => {
-    await saveSettings({ progressDashboardEnabled: true });
-    applyProgressDashboardUi(true);
+enableHistoryElement?.addEventListener('click', async () => {
+  await withDisabled(enableHistoryElement, async () => {
+    await saveSettings({ readingHistoryEnabled: true });
+    applyReadingHistoryUi(true);
+    await renderTodaySummary();
     closePopup();
   });
 });
-dashboardElement?.addEventListener('click', async () => {
-  await browser.tabs.create({ url: browser.runtime.getURL('/dashboard.html'), active: true });
+homeElement?.addEventListener('click', async () => {
+  await browser.tabs.create({ url: browser.runtime.getURL('/home.html'), active: true });
   window.close();
 });
-resetAllElement?.addEventListener('click', async () => {
-  if (resetConfirmationElement) resetConfirmationElement.hidden = false;
-  resetAllElement.hidden = true;
-  confirmResetElement?.focus();
-});
-cancelResetElement?.addEventListener('click', () => {
-  if (resetConfirmationElement) resetConfirmationElement.hidden = true;
-  if (resetAllElement) {
-    resetAllElement.hidden = false;
-    resetAllElement.focus();
-  }
-});
-confirmResetElement?.addEventListener('click', async () => {
-  await withDisabled(confirmResetElement, async () => {
-    await clearAllPageStates();
-    if (resetConfirmationElement) resetConfirmationElement.hidden = true;
-    if (resetAllElement) resetAllElement.hidden = false;
-  });
+
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && Object.keys(changes).some((key) => key.startsWith('jri:'))) void renderTodaySummary();
 });
 
 if (toggleElement) {
@@ -213,7 +148,6 @@ if (toggleElement) {
         if (revision !== stateRevision) return;
         if (!res || res.ok) {
           applyUi(res?.enabled ?? nextEnabled);
-          if (!res?.enabled) applyContentCandidates([], false);
           closePopup();
         } else {
           if (revision !== stateRevision) return;

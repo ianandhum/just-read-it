@@ -35,7 +35,7 @@ export interface DailyReadingTime {
 }
 
 export interface JriSettings {
-  progressDashboardEnabled: boolean;
+  readingHistoryEnabled: boolean;
   guidedReading: boolean;
   rsvpEnabled: boolean;
   ttsEnabled: boolean;
@@ -45,10 +45,18 @@ export interface JriSettings {
   guidedAdvanceDelay: number;
   guidedManualPause: number;
   mouseIdleDelay: number;
+  dimOpacity: number;
+  currentHighlightColor: string;
+  readHighlightColor: string;
+  colorMode: 'system' | 'light' | 'dark';
+  darkCurrentHighlightColor: string;
+  darkReadHighlightColor: string;
+  currentWordBackgroundColor: string;
+  darkCurrentWordBackgroundColor: string;
 }
 
 export const DEFAULT_SETTINGS: JriSettings = {
-  progressDashboardEnabled: false,
+  readingHistoryEnabled: false,
   guidedReading: false,
   rsvpEnabled: false,
   ttsEnabled: false,
@@ -58,6 +66,14 @@ export const DEFAULT_SETTINGS: JriSettings = {
   guidedAdvanceDelay: 600,
   guidedManualPause: 600,
   mouseIdleDelay: 300,
+  dimOpacity: 0.42,
+  currentHighlightColor: '#f5c518',
+  readHighlightColor: '#4caf50',
+  colorMode: 'system',
+  darkCurrentHighlightColor: '#fde68a',
+  darkReadHighlightColor: '#86efac',
+  currentWordBackgroundColor: '#fdc57b',
+  darkCurrentWordBackgroundColor: '#fde68a',
 };
 
 export interface TabState {
@@ -84,12 +100,12 @@ export interface ToggleResult {
  * Runtime messages are named by the direction they travel. Each prefix names
  * the sender, which is what makes the direction unambiguous:
  *
- *   UI: extension pages (popup, dashboard) -> background worker.
+ *   UI: extension pages (popup, home) -> background worker.
  *   CS: page content script -> background worker.
  *   BG: background worker -> page content script.
  */
 
-/** Extension page (popup, dashboard) -> background worker. */
+/** Extension page (popup, home) -> background worker. */
 export type UiToBackgroundMessage =
   | { type: 'UI_GET_STATE' } // request the state of the active tab
   | { type: 'UI_SET_READING_MODE'; enabled: boolean } // toggle the active tab's reader
@@ -102,7 +118,7 @@ export type ContentToBackgroundMessage =
   | { type: 'CS_SENTENCE_HOVER'; hovered: boolean } // report sentence hover (for Read From Here context menu)
   | { type: 'CS_CONTENT_CANDIDATES'; candidates: ContentCandidateInfo[] } // report content candidate info
   | { type: 'CS_SET_READING_MODE'; enabled: boolean } // reader requests a state change (e.g. close button)
-  | { type: 'CS_OPEN_DASHBOARD' } // open the reading dashboard in a new tab
+  | { type: 'CS_OPEN_HOME' } // open the reading home in a new tab
   | { type: 'CS_TTS_STATUS' }
   | { type: 'CS_TTS_SPEAK'; text: string; rate: number; voiceURI: string | null; requestId: number }
   | { type: 'CS_TTS_STOP' };

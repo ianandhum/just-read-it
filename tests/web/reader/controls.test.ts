@@ -13,7 +13,7 @@ function actions(overrides: Partial<ControlActions> = {}): ControlActions {
     toggleLightsOut: () => {},
     reset: () => {},
     toggleStarred: () => {},
-    openDashboard: () => {},
+    openHome: () => {},
     close: () => {},
     setRate: () => {},
     setGuidedRate: () => {},
@@ -524,12 +524,12 @@ describe('RSVP controls', () => {
     controls.destroy();
   });
 
-  it('orders Actions as reset, mark read, and dashboard icons', () => {
+  it('orders Actions as reset, mark read, and home icons', () => {
     const controls = createReaderControls(document, '', actions(), controlState());
     const group = controls.root.querySelector('#jri-speed-popover .jri-actions-group')!;
     const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('.jri-action-button'));
 
-    expect(buttons.map((button) => button.title)).toEqual(['Reset reading progress', 'Mark document as read', 'Open reading dashboard']);
+    expect(buttons.map((button) => button.title)).toEqual(['Reset reading progress', 'Mark document as read', 'Open reading home']);
     expect(buttons.every((button) => button.textContent === '')).toBe(true);
     controls.destroy();
   });

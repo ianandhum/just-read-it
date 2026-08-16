@@ -24,10 +24,11 @@ import { createReaderGuided } from '@/lib/web/reader/guided';
 import { createReaderControls, type ReaderControls, type ReaderControlsState, type ReaderStatus } from '@/lib/web/reader/controls';
 import { attachInteraction, type InteractionHandle } from '@/lib/web/reader/interaction';
 import { createProgressBar, type ProgressBar } from '@/lib/web/reader/progress';
-import { applyReaderFontScale, removeReaderStyle, setCurrentWordContrast } from '@/lib/web/reader/presentation';
+import { applyReaderAppearance, applyReaderFontScale, removeReaderStyle, setCurrentWordContrast } from '@/lib/web/reader/presentation';
 import { removeSharedProgressFromUrl, shareProgressUrl, sharedProgressFromUrl } from '@/lib/progress_share';
 import { rangesToReadIds } from '@/lib/progress_share';
 
+import accentCss from '@/styles/accent.css?raw';
 import readerCss from '@/assets/reader-presentation.css?raw';
 import '@/assets/reader-page.css';
 
@@ -38,7 +39,7 @@ declare global {
 }
 
 const SAVE_DEBOUNCE_MS = 500;
-const CSS = readerCss.trim();
+const CSS = `${accentCss}\n${readerCss}`.trim();
 
 export default defineContentScript({
   registration: 'runtime',
@@ -90,7 +91,7 @@ export default defineContentScript({
     });
     const persistence: ReaderPersistence = createReaderPersistence(
       {
-        enabled: () => settings.progressDashboardEnabled,
+        enabled: () => settings.readingHistoryEnabled,
         isTornDown: () => tornDown,
         pageState: () =>
           session && sessionUrl
@@ -178,6 +179,7 @@ export default defineContentScript({
         applyReaderFontScale(document, fontScale);
       }
       settings = { ...settings, ...settingsPatch };
+      applyReaderAppearance(document, settings);
       updateControls();
       void updateWakeLock();
       if (!speech.readingAloud || (!voiceChanged && !rateChanged) || !session) return;
@@ -560,7 +562,7 @@ export default defineContentScript({
       const url = sessionUrl ?? location.href;
       activationGen++;
       const resetGeneration = activationGen;
-      setStatus('Resetting reading progress', {indefinite: true});
+      setStatus('Resetting reading progress', { indefinite: true });
       // Keep the sentence wrappers and controls in place. Resetting only
       // replaces reading state, avoiding an expensive unwrap and re-wrap.
       await deactivateSession(true);
@@ -670,10 +672,10 @@ export default defineContentScript({
                 console.error('[Just Read It] set starred failed', err);
               }
             },
-            openDashboard: () => {
+            openHome: () => {
               void browser.runtime
                 .sendMessage({
-                  type: 'CS_OPEN_DASHBOARD',
+                  type: 'CS_OPEN_HOME',
                 } satisfies RuntimeMessage)
                 .catch(() => {});
             },
@@ -741,6 +743,7 @@ export default defineContentScript({
               applySettings({ fontScale: nextFontScale });
               if (sessionUrl) void saveFontScale(sessionUrl, nextFontScale);
             },
+            selectContentCandidate: (candidateId) => selectContentCandidate(candidateId),
           },
           currentControlsState(),
         );
@@ -768,6 +771,7 @@ export default defineContentScript({
           confidence,
           selected: id === contentCandidateId,
         }));
+        controls?.setContentCandidates(cachedContentCandidates);
         void browser.runtime
           .sendMessage({
             type: 'CS_CONTENT_CANDIDATES',

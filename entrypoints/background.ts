@@ -34,7 +34,7 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, sender) => {
     const msg = message as RuntimeMessage;
     switch (msg.type) {
-      // Extension pages (contentScript, popup, dashboard) -> background.
+      // Extension pages (contentScript, popup, home) -> background.
       case 'UI_GET_STATE':
         return handleGetState();
       case 'UI_SET_READING_MODE':
@@ -79,8 +79,8 @@ export default defineBackground(() => {
         if (tabId == null) return undefined;
         return msg.enabled ? withTabLock(tabId, () => updateReadingModeState(tabId, true)) : disableReadingMode(tabId);
       }
-      case 'CS_OPEN_DASHBOARD':
-        return openDashboardPage();
+      case 'CS_OPEN_HOME':
+        return openHomePage();
       case 'CS_TTS_STATUS':
         return getTtsStatus();
       case 'CS_TTS_SPEAK':
@@ -431,9 +431,9 @@ export default defineBackground(() => {
     }
   }
 
-  async function openDashboardPage(): Promise<{ ok: boolean }> {
+  async function openHomePage(): Promise<{ ok: boolean }> {
     try {
-      await browser.tabs.create({ url: browser.runtime.getURL('/dashboard.html'), active: true });
+      await browser.tabs.create({ url: browser.runtime.getURL('/home.html'), active: true });
       return { ok: true };
     } catch {
       return { ok: false };

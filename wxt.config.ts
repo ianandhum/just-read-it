@@ -34,6 +34,10 @@ export default defineConfig({
         32: '/icons/just-read-it-32.png',
       },
     },
+    options_ui: {
+      page: '/home.html#preferences-panel',
+      open_in_tab: true,
+    },
     browser_specific_settings: {
       gecko: {
         id: 'just-read-it@local',

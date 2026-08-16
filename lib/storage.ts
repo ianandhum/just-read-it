@@ -126,9 +126,9 @@ function isPageState(value: unknown): value is PageState {
 
 function isSettings(value: unknown): value is JriSettings {
   if (!value || typeof value !== 'object') return false;
-  const settings = value as Partial<JriSettings>;
+  const settings = value as Partial<JriSettings> & { progressDashboardEnabled?: boolean };
   return (
-    typeof settings.progressDashboardEnabled === 'boolean' &&
+    (typeof settings.readingHistoryEnabled === 'boolean' || typeof settings.progressDashboardEnabled === 'boolean') &&
     typeof settings.guidedReading === 'boolean' &&
     typeof settings.rsvpEnabled === 'boolean' &&
     typeof settings.ttsEnabled === 'boolean' &&
@@ -137,7 +137,18 @@ function isSettings(value: unknown): value is JriSettings {
     typeof settings.guidedRate === 'number' &&
     typeof settings.guidedAdvanceDelay === 'number' &&
     typeof settings.guidedManualPause === 'number' &&
-    typeof settings.mouseIdleDelay === 'number'
+    typeof settings.mouseIdleDelay === 'number' &&
+    (settings.dimOpacity === undefined || typeof settings.dimOpacity === 'number') &&
+    (settings.currentHighlightColor === undefined || typeof settings.currentHighlightColor === 'string') &&
+    (settings.readHighlightColor === undefined || typeof settings.readHighlightColor === 'string') &&
+    (settings.colorMode === undefined ||
+      settings.colorMode === 'system' ||
+      settings.colorMode === 'light' ||
+      settings.colorMode === 'dark') &&
+    (settings.darkCurrentHighlightColor === undefined || typeof settings.darkCurrentHighlightColor === 'string') &&
+    (settings.darkReadHighlightColor === undefined || typeof settings.darkReadHighlightColor === 'string') &&
+    (settings.currentWordBackgroundColor === undefined || typeof settings.currentWordBackgroundColor === 'string') &&
+    (settings.darkCurrentWordBackgroundColor === undefined || typeof settings.darkCurrentWordBackgroundColor === 'string')
   );
 }
 
@@ -228,15 +239,31 @@ export async function importData(value: unknown): Promise<void> {
   if (backup.pageStates.length > 0) {
     await browser.storage.local.set(Object.fromEntries(backup.pageStates.map((state) => [keyFromUrl(state.url), state])));
   }
-  await setSynced(SETTINGS_KEY, backup.settings);
+  const legacySettings = backup.settings as JriSettings & { progressDashboardEnabled?: boolean };
+  const settings = { ...legacySettings };
+  delete settings.progressDashboardEnabled;
+  await setSynced(SETTINGS_KEY, {
+    ...settings,
+    readingHistoryEnabled:
+      legacySettings.readingHistoryEnabled ?? legacySettings.progressDashboardEnabled ?? DEFAULT_SETTINGS.readingHistoryEnabled,
+  });
 }
 
 export async function loadSettings(): Promise<JriSettings> {
-  const stored = await getSynced<Partial<JriSettings>>(SETTINGS_KEY);
+  const stored = await getSynced<Partial<JriSettings> & { progressDashboardEnabled?: boolean }>(SETTINGS_KEY);
+  // Migrate the old persisted flag without losing existing reading-history choices.
+  const readingHistoryEnabled = stored?.readingHistoryEnabled ?? stored?.progressDashboardEnabled ?? DEFAULT_SETTINGS.readingHistoryEnabled;
+  if (stored?.progressDashboardEnabled !== undefined && stored.readingHistoryEnabled === undefined) {
+    const migrated = { ...stored };
+    delete migrated.progressDashboardEnabled;
+    await setSynced(SETTINGS_KEY, { ...migrated, readingHistoryEnabled });
+  }
   return {
     ...DEFAULT_SETTINGS,
     ...(stored ?? {}),
+    readingHistoryEnabled,
     guidedRate: Math.min(3, Math.max(0.5, stored?.guidedRate ?? DEFAULT_SETTINGS.guidedRate)),
+    dimOpacity: Math.min(0.9, Math.max(0, stored?.dimOpacity ?? DEFAULT_SETTINGS.dimOpacity)),
   };
 }
 

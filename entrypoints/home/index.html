@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Just Read It - Dashboard</title>
+    <title>Just Read It - Home</title>
     <link rel="icon" type="image/png" href="/icons/just-read-it-32.png" />
-    <link rel="stylesheet" href="./dashboard.css" />
+    <link rel="stylesheet" href="./home.css" />
   </head>
   <body>
-    <main class="dashboard">
+    <main class="home">
       <header class="header">
         <div class="brand">
           <img class="brand-mark" src="/icons/just-read-it.png" alt="" />
@@ -19,13 +19,13 @@
         </div>
       </header>
       <p class="intro">Pick up where you left off, explore your reading history, and manage your data.</p>
-      <nav class="tabs" aria-label="Dashboard sections" role="tablist">
+      <nav class="tabs" aria-label="Home sections" role="tablist">
         <button id="jump-back-tab" class="tab" type="button" role="tab" aria-selected="true" aria-controls="jump-back-panel">
           Overview
         </button>
         <button id="history-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="history-panel">History</button>
-        <button id="settings-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="settings-panel">
-          Settings
+        <button id="preferences-tab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="preferences-panel">
+          Preferences
         </button>
       </nav>
       <section id="jump-back-panel" class="tab-panel" role="tabpanel" aria-labelledby="jump-back-tab">
@@ -45,6 +45,12 @@
             </select>
           </label>
         </div>
+        <section id="overview-tracking-prompt" class="tracking-prompt" aria-labelledby="overview-tracking-heading" hidden>
+          <p class="eyebrow">Reading history</p>
+          <h2 id="overview-tracking-heading">Track your reading progress</h2>
+          <p class="section-description">Save your reading time, article progress, and activity to see them here.</p>
+          <button class="button enable-tracking" type="button">Enable progress tracking</button>
+        </section>
         <section class="summary" aria-label="Reading progress summary">
           <article class="stat-card">
             <div class="stat-heading"><span>Completion</span></div>
@@ -148,6 +154,12 @@
             <span id="page-count" class="badge"></span>
           </div>
           <div class="card-content">
+            <section id="history-tracking-prompt" class="tracking-prompt" aria-labelledby="history-tracking-heading" hidden>
+              <p class="eyebrow">Reading history</p>
+              <h2 id="history-tracking-heading">Build your reading history</h2>
+              <p class="section-description">Enable progress tracking to save articles and pick up where you left off.</p>
+              <button class="button enable-tracking" type="button">Enable progress tracking</button>
+            </section>
             <label class="history-search" for="history-search">
               <span>Search history</span>
               <input id="history-search" type="search" placeholder="Search titles or URLs" autocomplete="off" />
@@ -167,7 +179,106 @@
           </div>
         </section>
       </section>
-      <section id="settings-panel" class="tab-panel" role="tabpanel" aria-labelledby="settings-tab" hidden>
+      <section id="preferences-panel" class="tab-panel" role="tabpanel" aria-labelledby="preferences-tab" hidden>
+        <div class="settings-layout">
+          <div class="settings-row">
+            <article class="article-preview" id="article-preview" aria-labelledby="preview-heading">
+              <h2 id="preview-heading">Live Preview</h2>
+              <p class="article-kicker">A SMALL PRACTICE</p>
+              <h3>Make room for the sentence you are in.</h3>
+              <p class="preview-sentence read">This sentence is already read, so its green.</p>
+              <p class="preview-sentence current">
+                Give the
+                <mark>current word</mark>
+                enough contrast to hold your attention.
+              </p>
+              <p class="preview-sentence dimmed">Rest of the text can be dimmed or kept as is.</p>
+              <p class="preview-sentence dimmed">
+                You'd want to focus on the current sentence -- also more or less, the current word -- to keep your focus.
+              </p>
+              <div class="preview-controls">
+                <label class="preview-toggle" for="preview-dimming">
+                  <input id="preview-dimming" type="checkbox" checked />
+                  <span>Auto Dimming</span>
+                </label>
+                <select id="color-mode" class="preview-mode" aria-label="Theme">
+                  <option value="system">Theme - System</option>
+                  <option value="light">Theme - Light</option>
+                  <option value="dark">Theme - Dark</option>
+                </select>
+              </div>
+            </article>
+            <section class="control-section" aria-labelledby="appearance-heading">
+              <div class="settings-heading">
+                <p class="eyebrow">Appearance</p>
+                <h2 id="appearance-heading">Reading focus</h2>
+              </div>
+              <label class="field range-field" for="dim-opacity">
+                <span>
+                  Auto-dimming opacity
+                  <output id="dim-opacity-value">42%</output>
+                </span>
+                <input id="dim-opacity" type="range" min="0" max="90" step="1" />
+              </label>
+              <p class="field-help">How much surrounding sentences fade when Auto Dimming is active.</p>
+              <div class="color-fields">
+                <label class="color-field" for="current-highlight-color">
+                  <span id="current-color-label">Current sentence</span>
+                  <input id="current-highlight-color" type="color" />
+                </label>
+                <label class="color-field" for="read-highlight-color">
+                  <span id="read-color-label">Completed sentence</span>
+                  <input id="read-highlight-color" type="color" />
+                </label>
+                <label class="color-field" for="current-word-background-color">
+                  <span id="current-word-color-label">Current word</span>
+                  <input id="current-word-background-color" type="color" />
+                </label>
+              </div>
+            </section>
+          </div>
+          <section class="control-section reading-controls" aria-label="Reading controls">
+            <div class="reading-control-column" aria-labelledby="guided-heading">
+              <div class="settings-heading">
+                <p class="eyebrow">Pacing</p>
+                <h2 id="guided-heading">Guided Reading</h2>
+              </div>
+              <label class="field range-field" for="guided-rate">
+                <span>
+                  Guided speed
+                  <output id="guided-rate-value">1.0x</output>
+                </span>
+                <input id="guided-rate" type="range" min="0.5" max="3" step="0.1" />
+              </label>
+              <label class="field range-field" for="advance-delay">
+                <span>
+                  Sentence delay
+                  <output id="advance-delay-value">0.6s</output>
+                </span>
+                <input id="advance-delay" type="range" min="0" max="3000" step="100" />
+              </label>
+            </div>
+            <div class="reading-control-column" aria-labelledby="aloud-heading">
+              <div class="settings-heading">
+                <p class="eyebrow">Narration</p>
+                <h2 id="aloud-heading">Read Aloud</h2>
+              </div>
+              <label class="field" for="voice">
+                <span>Voice</span>
+                <select id="voice">
+                  <option value="">Default voice</option>
+                </select>
+              </label>
+              <label class="field range-field" for="rate">
+                <span>
+                  Voice speed
+                  <output id="rate-value">1.0x</output>
+                </span>
+                <input id="rate" type="range" min="0.5" max="2" step="0.1" />
+              </label>
+            </div>
+          </section>
+        </div>
         <section class="settings-section" aria-labelledby="data-transfer-heading">
           <div>
             <p class="eyebrow">Backup</p>
@@ -181,6 +292,13 @@
           </div>
           <p id="import-status" class="settings-status" role="status" hidden></p>
         </section>
+        <div class="reset-content">
+          <div>
+            <p class="eyebrow">Settings</p>
+            <p>Restore the controls above to their default values.</p>
+          </div>
+          <button id="reset-settings" class="button" type="button">Reset to defaults</button>
+        </div>
         <section class="danger-zone" aria-labelledby="danger-zone-heading">
           <div>
             <p class="eyebrow">Danger zone</p>
@@ -191,6 +309,6 @@
         </section>
       </section>
     </main>
-    <script type="module" src="./dashboard.ts"></script>
+    <script type="module" src="./home.ts"></script>
   </body>
 </html>

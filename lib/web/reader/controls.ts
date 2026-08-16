@@ -37,6 +37,7 @@ export interface ReaderControls {
   openProgressShare(url: string): void;
   destroy(): void;
   setStatus(status: string, options?: { progress?: number; indefinite?: boolean }): void;
+  setContentCandidates(candidates: { id: string; label: string; confidence: number; selected: boolean }[]): void;
 }
 
 interface ConfirmDialog {
@@ -55,7 +56,8 @@ export interface ControlActions {
   toggleLightsOut(): void;
   reset(): void;
   toggleStarred(): void;
-  openDashboard(): void;
+  openHome(): void;
+  selectContentCandidate?(candidateId: string): void;
   close(): void;
   setRate(rate: number): void;
   setGuidedRate(rate: number): void;
@@ -92,7 +94,7 @@ const ICONS = {
   play: '<polygon points="7 3 21 12 7 21 7 3"/>',
   pause: '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
   settings: '<path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
-  layoutDashboard:
+  layoutGrid:
     '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   minimize2: '<path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/>',
   maximize2: '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/>',
@@ -278,8 +280,11 @@ interface SettingsControls {
   voiceSelect: HTMLSelectElement;
   decreaseFontSize: HTMLButtonElement;
   increaseFontSize: HTMLButtonElement;
+  fontScaleOutput: HTMLOutputElement;
   loadVoices(): void;
+  setVoiceURI(voiceURI: string | null): void;
   setFontScale(fontScale: number): void;
+  setContentCandidates(candidates: { id: string; label: string; confidence: number; selected: boolean }[]): void;
 }
 
 interface RsvpControls {
@@ -415,6 +420,9 @@ export function createReaderControls(
       statusProgressRing.setAttribute('aria-label', progress === null ? text : `${progress}% complete`);
       statusActions.hidden = true;
     },
+    setContentCandidates(candidates) {
+      settings.setContentCandidates(candidates);
+    },
     update,
     destroy() {
       confirm.destroy();
@@ -504,19 +512,28 @@ function createSettingsControls(
   fontScale: number,
 ): SettingsControls & { destroy(): void } {
   let currentFontScale = fontScale;
+  let currentVoiceURI = voiceURI;
   const popover = doc.createElement('dialog');
   popover.className = 'jri-speed-popover';
   popover.setAttribute('aria-label', 'Reading speed controls');
   const aloudSpeed = createSpeedControl(doc, 'Read Aloud', 'Read aloud speed', rate, actions.setRate);
   const guidedSpeed = createSpeedControl(doc, 'Guided Reading', 'Guided reading speed', guidedRate, actions.setGuidedRate, 3);
   const { control: rsvpControl, input: rsvp } = createRsvpControl(doc, actions);
-  const { control: fontSizeControl, decreaseFontSize, increaseFontSize } = createFontSizeControl(doc, actions, () => currentFontScale);
-  const { control: voiceSection, select: voiceSelect, load: loadVoices } = createVoiceControl(doc, actions, voiceURI);
-  const dashboard = addIconButton(doc, ICONS.layoutDashboard, 'Open reading dashboard', () => {
+  const {
+    control: fontSizeControl,
+    decreaseFontSize,
+    increaseFontSize,
+    output: fontScaleOutput,
+    updateOutput: updateFontScaleOutput,
+  } = createFontSizeControl(doc, actions, () => currentFontScale);
+  const { control: voiceSection, select: voiceSelect, load: loadVoices } = createVoiceControl(doc, actions, () => currentVoiceURI);
+  const contentSection = createContentCandidateControl(doc, actions);
+  voiceSection.classList.add('jri-read-aloud-section');
+  const home = addIconButton(doc, ICONS.layoutGrid, 'Open reading home', () => {
     popover.close();
-    actions.openDashboard();
+    actions.openHome();
   });
-  dashboard.classList.add('jri-action-button');
+  home.classList.add('jri-action-button');
   const markAll = addIconButton(doc, ICONS.checkCheck, 'Mark document as read', () => {
     popover.close();
     confirm.ask('Mark the entire document as read?', actions.markAllRead);
@@ -531,18 +548,21 @@ function createSettingsControls(
   group.className = 'jri-speed-group';
   group.append(
     createSettingsHeader(doc),
-    createSettingsGroup(doc, 'Reading', fontSizeControl, guidedSpeed.control, rsvpControl),
-    createSettingsGroup(doc, 'Read Aloud', voiceSection, aloudSpeed.control),
+    createSettingsGroup(doc, 'Reading', contentSection, fontSizeControl),
+    createSettingsGroup(doc, 'Guided Reading', guidedSpeed.control, rsvpControl, voiceSection, aloudSpeed.control),
   );
-  const actionsGroup = createSettingsGroup(doc, 'Actions', reset, markAll, dashboard);
+  const actionsGroup = createSettingsGroup(doc, 'Actions', reset, markAll, home);
   actionsGroup.classList.add('jri-actions-group');
   group.append(actionsGroup);
   const close = addButton(doc, 'Done', 'Close reading settings', () => popover.close());
   close.classList.add('jri-settings-close');
   group.append(close);
   popover.append(group);
+  const refreshVoices = (): void => {
+    loadVoices();
+  };
   const onVoicesChanged = (): void => {
-    if (popover.open) window.setTimeout(loadVoices, 0);
+    window.setTimeout(refreshVoices, 0);
   };
   speechSynthesis?.addEventListener('voiceschanged', onVoicesChanged);
   const toggle = addIconButton(doc, ICONS.settings, 'Show reading settings', () => {
@@ -550,8 +570,8 @@ function createSettingsControls(
     toggle.setAttribute('aria-expanded', 'true');
     window.setTimeout(actions.pauseGuidedForSettings, 0);
     // Voice enumeration can be slow on platforms with remote/system voices. Let
-    // the dialog paint first, then populate it without delaying the open action.
-    window.setTimeout(loadVoices, 0);
+    // the dialog paint first, then refresh it without delaying the open action.
+    window.setTimeout(refreshVoices, 0);
   });
   toggle.classList.add('jri-speed-toggle');
   toggle.setAttribute('aria-expanded', 'false');
@@ -568,14 +588,50 @@ function createSettingsControls(
     voiceSelect,
     decreaseFontSize,
     increaseFontSize,
+    fontScaleOutput,
     loadVoices,
+    setVoiceURI(value) {
+      currentVoiceURI = value;
+      if (popover.open) refreshVoices();
+    },
     setFontScale(value) {
       currentFontScale = value;
+      updateFontScaleOutput();
+    },
+    setContentCandidates(candidates) {
+      contentSection.hidden = candidates.length < 2;
+      const select = contentSection.querySelector('select');
+      if (!(select instanceof HTMLSelectElement)) return;
+      select.replaceChildren();
+      for (const candidate of candidates) {
+        const option = new Option(
+          `${candidate.label} (${candidate.confidence}% match)`,
+          candidate.id,
+          candidate.selected,
+          candidate.selected,
+        );
+        select.append(option);
+      }
     },
     destroy() {
       speechSynthesis?.removeEventListener('voiceschanged', onVoicesChanged);
     },
   };
+}
+
+function createContentCandidateControl(doc: Document, actions: ControlActions): HTMLLabelElement {
+  const label = doc.createElement('label');
+  label.className = 'jri-content-candidate-control';
+  label.hidden = true;
+  label.textContent = 'Reading section';
+  const select = doc.createElement('select');
+  select.setAttribute('aria-label', 'Reading section');
+  select.addEventListener('change', () => {
+    const candidateId = select.value;
+    if (candidateId) actions.selectContentCandidate?.(candidateId);
+  });
+  label.append(select);
+  return label;
 }
 
 function createSettingsHeader(doc: Document): HTMLDivElement {
@@ -606,7 +662,8 @@ function createProgressShareControls(doc: Document, actions: ControlActions): { 
   const heading = doc.createElement('h2');
   heading.textContent = 'Continue on another device';
   const description = doc.createElement('p');
-  description.textContent = 'Scan or copy this link to continue at the same place. It includes this article URL and your reading progress; Just Read It is required to restore it.';
+  description.textContent =
+    'Scan or copy this link to continue at the same place. It includes this article URL and your reading progress; Just Read It is required to restore it.';
   const qr = doc.createElement('div');
   qr.className = 'jri-progress-share-qr';
   qr.setAttribute('role', 'img');
@@ -672,7 +729,18 @@ function createSpeedControl(
   input.value = String(value);
   input.setAttribute('aria-label', title);
   input.addEventListener('input', () => action(Number(input.value)));
-  control.append(name, output, input);
+  const range = doc.createElement('div');
+  range.className = 'jri-speed-range';
+  const decrease = addButton(doc, '-', `Decrease ${title.toLowerCase()}`, () => {
+    action(Math.max(Number(input.min), Math.round((Number(input.value) - Number(input.step)) * 10) / 10));
+  });
+  const increase = addButton(doc, '+', `Increase ${title.toLowerCase()}`, () => {
+    action(Math.min(Number(input.max), Math.round((Number(input.value) + Number(input.step)) * 10) / 10));
+  });
+  decrease.classList.add('jri-speed-step');
+  increase.classList.add('jri-speed-step');
+  range.append(decrease, input, increase);
+  control.append(name, output, range);
   return { control, input, output };
 }
 
@@ -688,20 +756,25 @@ function createFontSizeControl(doc: Document, actions: ControlActions, getFontSc
   const increaseFontSize = addButton(doc, 'A+', 'Increase text size', () => {
     actions.setFontScale(Math.min(5, Math.round((getFontScale() + 0.1) * 10) / 10));
   });
-  control.append(label, decreaseFontSize, increaseFontSize);
-  return { control, decreaseFontSize, increaseFontSize };
+  const output = doc.createElement('output');
+  const updateOutput = (): void => {
+    output.textContent = `${getFontScale().toFixed(1)}x`;
+  };
+  updateOutput();
+  control.append(label, decreaseFontSize, output, increaseFontSize);
+  return { control, decreaseFontSize, increaseFontSize, output, updateOutput };
 }
 
-function createVoiceControl(doc: Document, actions: ControlActions, voiceURI: string | null) {
+function createVoiceControl(doc: Document, actions: ControlActions, getVoiceURI: () => string | null) {
   const control = doc.createElement('label');
   control.className = 'jri-voice-control';
   control.textContent = 'Voice';
   const select = doc.createElement('select');
   select.setAttribute('aria-label', 'Read aloud voice');
   const load = (): void => {
-    const selected = voiceURI ?? '';
+    const selected = getVoiceURI() ?? '';
     select.replaceChildren(new Option('Default voice', ''));
-    for (const voice of getReadableVoices(voiceURI)) select.append(new Option(`${voice.name} (${voice.lang})`, voice.voiceURI));
+    for (const voice of getReadableVoices(selected)) select.append(new Option(`${voice.name} (${voice.lang})`, voice.voiceURI));
     select.value = selected;
     if (select.value !== selected) select.value = '';
   };
@@ -1067,7 +1140,7 @@ function updateReaderControls(
   toolbar.next.disabled = state.currentSentence === null || state.currentSentence >= state.totalSentences - 1;
   updateSpeedControl(settings.aloudSpeed, state.rate);
   updateSpeedControl(settings.guidedSpeed, state.guidedRate);
-  settings.voiceSelect.value = state.voiceURI ?? '';
+  settings.setVoiceURI(state.voiceURI);
   settings.setFontScale(state.fontScale);
   settings.decreaseFontSize.disabled = state.fontScale <= 0.5;
   settings.increaseFontSize.disabled = state.fontScale >= 5;
