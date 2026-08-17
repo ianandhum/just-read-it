@@ -38,6 +38,7 @@ export interface ReaderControls {
   destroy(): void;
   setStatus(status: string, options?: { progress?: number; indefinite?: boolean }): void;
   setContentCandidates(candidates: { id: string; label: string; confidence: number; selected: boolean }[]): void;
+  setTheme(theme: 'light' | 'dark'): void;
 }
 
 interface ConfirmDialog {
@@ -63,6 +64,7 @@ export interface ControlActions {
   setGuidedRate(rate: number): void;
   setVoice(voiceURI: string | null): void;
   setFontScale(fontScale: number): void;
+  setReaderUiTheme?(theme: 'auto' | 'light' | 'dark'): void;
   openProgressShare(): void;
   shareProgressUrl(url: string): Promise<boolean> | boolean;
   copyProgressUrl(url: string): Promise<void> | void;
@@ -96,6 +98,8 @@ const ICONS = {
   settings: '<path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
   layoutGrid:
     '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  minus: '<path d="M5 12h14"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   minimize2: '<path d="m14 10 7-7"/><path d="M20 10h-6V4"/><path d="m3 21 7-7"/><path d="M4 14h6v6"/>',
   maximize2: '<path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/>',
   extension: '<path d="M7 3h10v18H7z"/><path d="M9.5 7h5M9.5 11h5M9.5 15h3"/>',
@@ -121,11 +125,12 @@ function iconSvg(paths: string): SVGSVGElement {
   return svg;
 }
 
-function createReaderUiHost(doc: Document, css: string): { host: HTMLDivElement; root: ShadowRoot } {
+function createReaderUiHost(doc: Document, css: string, theme: 'light' | 'dark'): { host: HTMLDivElement; root: ShadowRoot } {
   doc.getElementById('jri-ui-host')?.remove();
   const host = doc.createElement('div');
   host.id = 'jri-ui-host';
   host.setAttribute('aria-label', 'Just Read It extension interface');
+  host.dataset.readerTheme = theme;
   host.style.setProperty('all', 'initial', 'important');
   host.style.setProperty('position', 'fixed', 'important');
   host.style.setProperty('z-index', '2147483647', 'important');
@@ -205,7 +210,7 @@ function createStatusElement(
   actionGroup.append(share, star);
   const copy = doc.createElement('span');
   copy.className = 'jri-reading-status';
-  copy.append(progressRing, minutes, actionGroup);
+  copy.append(minutes, actionGroup);
   element.append(copy);
   return { element, minutes, progress, progressRing, actions: actionGroup, star, share };
 }
@@ -300,8 +305,10 @@ export function createReaderControls(
   css: string,
   actions: ControlActions,
   initialState: ReaderControlsState,
+  theme: 'light' | 'dark' = 'light',
+  readerUiTheme: 'auto' | 'light' | 'dark' = 'auto',
 ): ReaderControls {
-  const { host, root } = createReaderUiHost(doc, css);
+  const { host, root } = createReaderUiHost(doc, css, theme);
   const confirm = createConfirmDialog(doc, root);
   const toolbar = createToolbar(doc);
   const {
@@ -321,6 +328,7 @@ export function createReaderControls(
     initialState.guidedRate,
     initialState.voiceURI,
     initialState.fontScale,
+    readerUiTheme,
   );
   const progressShare = createProgressShareControls(doc, actions);
   const rsvp = createRsvpControls(doc, toolbar.bar, minimized.element, actions);
@@ -334,6 +342,7 @@ export function createReaderControls(
     actions,
     confirm,
     initialState.speechAvailable,
+    statusProgressRing,
   );
   root.append(minimized.element);
   const placeStatus = (): void => placeReaderStatus(root, toolbar.bar, toolbar.firstRow, statusElement);
@@ -356,6 +365,12 @@ export function createReaderControls(
     toolbar.bar.hidden = value;
     minimized.element.hidden = !value;
     rsvp.syncPosition();
+    if (!value) {
+      requestAnimationFrame(() => {
+        docking.sync();
+        rsvp.syncPosition();
+      });
+    }
   };
   toolbarControls.minimize.addEventListener('click', () => setMinimized(true));
   minimized.restore.addEventListener('click', () => setMinimized(false));
@@ -422,6 +437,9 @@ export function createReaderControls(
     },
     setContentCandidates(candidates) {
       settings.setContentCandidates(candidates);
+    },
+    setTheme(theme) {
+      host.dataset.readerTheme = theme;
     },
     update,
     destroy() {
@@ -510,6 +528,7 @@ function createSettingsControls(
   guidedRate: number,
   voiceURI: string | null,
   fontScale: number,
+  readerUiTheme: 'auto' | 'light' | 'dark',
 ): SettingsControls & { destroy(): void } {
   let currentFontScale = fontScale;
   let currentVoiceURI = voiceURI;
@@ -528,6 +547,7 @@ function createSettingsControls(
   } = createFontSizeControl(doc, actions, () => currentFontScale);
   const { control: voiceSection, select: voiceSelect, load: loadVoices } = createVoiceControl(doc, actions, () => currentVoiceURI);
   const contentSection = createContentCandidateControl(doc, actions);
+  const themeSection = createReaderUiThemeControl(doc, readerUiTheme, actions);
   voiceSection.classList.add('jri-read-aloud-section');
   const home = addIconButton(doc, ICONS.layoutGrid, 'Open reading home', () => {
     popover.close();
@@ -548,7 +568,7 @@ function createSettingsControls(
   group.className = 'jri-speed-group';
   group.append(
     createSettingsHeader(doc),
-    createSettingsGroup(doc, 'Reading', contentSection, fontSizeControl),
+    createSettingsGroup(doc, 'Reading', contentSection, fontSizeControl, themeSection),
     createSettingsGroup(doc, 'Guided Reading', guidedSpeed.control, rsvpControl, voiceSection, aloudSpeed.control),
   );
   const actionsGroup = createSettingsGroup(doc, 'Actions', reset, markAll, home);
@@ -731,10 +751,10 @@ function createSpeedControl(
   input.addEventListener('input', () => action(Number(input.value)));
   const range = doc.createElement('div');
   range.className = 'jri-speed-range';
-  const decrease = addButton(doc, '-', `Decrease ${title.toLowerCase()}`, () => {
+  const decrease = addIconButton(doc, ICONS.minus, `Decrease ${title.toLowerCase()}`, () => {
     action(Math.max(Number(input.min), Math.round((Number(input.value) - Number(input.step)) * 10) / 10));
   });
-  const increase = addButton(doc, '+', `Increase ${title.toLowerCase()}`, () => {
+  const increase = addIconButton(doc, ICONS.plus, `Increase ${title.toLowerCase()}`, () => {
     action(Math.min(Number(input.max), Math.round((Number(input.value) + Number(input.step)) * 10) / 10));
   });
   decrease.classList.add('jri-speed-step');
@@ -791,6 +811,19 @@ function createSettingsGroup(doc: Document, label: string, ...controls: Node[]):
   groupLabel.textContent = label;
   group.append(groupLabel, ...controls);
   return group;
+}
+
+function createReaderUiThemeControl(doc: Document, theme: 'auto' | 'light' | 'dark', actions: ControlActions): HTMLLabelElement {
+  const label = doc.createElement('label');
+  label.className = 'jri-reader-ui-theme-control';
+  label.textContent = 'Controls appearance';
+  const select = doc.createElement('select');
+  select.setAttribute('aria-label', 'Reader View controls appearance');
+  select.append(new Option('Auto', 'auto'), new Option('Light', 'light'), new Option('Dark', 'dark'));
+  select.value = theme;
+  select.addEventListener('change', () => actions.setReaderUiTheme?.(select.value as 'auto' | 'light' | 'dark'));
+  label.append(select);
+  return label;
 }
 
 function createRsvpControl(doc: Document, actions: ControlActions) {
@@ -1016,6 +1049,7 @@ function createToolbarControls(
   actions: ControlActions,
   confirm: ConfirmDialog,
   speechAvailable: boolean,
+  progressRing: HTMLElement,
 ) {
   const drag = addIconButton(doc, ICONS.grip, 'Move controls', () => {});
   drag.classList.add('jri-drag');
@@ -1026,12 +1060,7 @@ function createToolbarControls(
   navigationStatus.className = 'jri-navigation-status';
   navigationStatus.setAttribute('role', 'status');
   navigationStatus.setAttribute('aria-live', 'polite');
-  const navigationCenter = doc.createElement('img');
-  navigationCenter.className = 'jri-navigation-center';
-  navigationCenter.src = browser.runtime.getURL('/icons/just-read-it-32.png');
-  navigationCenter.alt = '';
-  navigationCenter.setAttribute('aria-hidden', 'true');
-  navigationStatus.append(navigationCenter);
+  navigationStatus.append(progressRing);
   const navigation = doc.createElement('div');
   navigation.className = 'jri-navigation';
   navigation.append(previous, navigationStatus, next);
@@ -1130,12 +1159,7 @@ function updateReaderControls(
   updateIconButton(toolbar.lightsOut, state.lightsOut, 'Turn Auto Dimming off', 'Turn Auto Dimming on', ICONS.spotlight, ICONS.spotlight);
   updateIconButton(statusStar, state.starred, 'Unstar article', 'Star article', ICONS.star, ICONS.star);
   const currentSentence = state.currentSentence === null ? null : state.currentSentence + 1;
-  toolbar.navigationStatus.setAttribute(
-    'aria-label',
-    currentSentence === null
-      ? `No current sentence. ${state.totalSentences} sentences total.`
-      : `Sentence ${currentSentence} of ${state.totalSentences}`,
-  );
+  const progress = state.complete ? 100 : state.totalSentences > 0 && currentSentence !== null ? (currentSentence / state.totalSentences) * 100 : 0;
   toolbar.previous.disabled = state.currentSentence === null || state.currentSentence <= 0;
   toolbar.next.disabled = state.currentSentence === null || state.currentSentence >= state.totalSentences - 1;
   updateSpeedControl(settings.aloudSpeed, state.rate);
@@ -1155,13 +1179,12 @@ function updateReaderControls(
     !state.status.text && !state.complete && currentSentence !== null && state.totalSentences > 0
       ? `${currentSentence}/${state.totalSentences}`
       : '';
-  const progress = state.totalSentences > 0 && currentSentence !== null ? (currentSentence / state.totalSentences) * 100 : 0;
   const time = document.createElement('span');
   time.className = 'jri-reading-time';
   time.textContent = statusText;
   const position = document.createElement('span');
   position.className = 'jri-reading-sentence-position';
-  position.textContent = sentencePosition;
+  position.textContent = sentencePosition ? `(${sentencePosition} sentences)` : '';
   position.hidden = !sentencePosition;
   statusMinutes.replaceChildren(time, position);
   statusMinutes.title = statusText;

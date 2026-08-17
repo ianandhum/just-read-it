@@ -141,10 +141,6 @@ function isSettings(value: unknown): value is JriSettings {
     (settings.dimOpacity === undefined || typeof settings.dimOpacity === 'number') &&
     (settings.currentHighlightColor === undefined || typeof settings.currentHighlightColor === 'string') &&
     (settings.readHighlightColor === undefined || typeof settings.readHighlightColor === 'string') &&
-    (settings.colorMode === undefined ||
-      settings.colorMode === 'system' ||
-      settings.colorMode === 'light' ||
-      settings.colorMode === 'dark') &&
     (settings.darkCurrentHighlightColor === undefined || typeof settings.darkCurrentHighlightColor === 'string') &&
     (settings.darkReadHighlightColor === undefined || typeof settings.darkReadHighlightColor === 'string') &&
     (settings.currentWordBackgroundColor === undefined || typeof settings.currentWordBackgroundColor === 'string') &&

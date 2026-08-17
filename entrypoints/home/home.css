@@ -5,7 +5,7 @@
   --star: #eab308;
   color: var(--foreground);
   background: var(--background);
-  font-family: Roboto, 'Noto Sans', Arial, sans-serif;
+  font-family: var(--font-ui);
 }
 
 body {
@@ -1165,6 +1165,8 @@ h2 {
   flex-direction: column;
   min-height: 320px;
   padding: 20px;
+  color: #171717;
+  background: #fafafa;
   box-shadow: 0 8px 24px rgb(0 0 0 / 6%);
 }
 

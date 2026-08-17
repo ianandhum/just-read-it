@@ -48,7 +48,6 @@ export interface JriSettings {
   dimOpacity: number;
   currentHighlightColor: string;
   readHighlightColor: string;
-  colorMode: 'system' | 'light' | 'dark';
   darkCurrentHighlightColor: string;
   darkReadHighlightColor: string;
   currentWordBackgroundColor: string;
@@ -67,13 +66,12 @@ export const DEFAULT_SETTINGS: JriSettings = {
   guidedManualPause: 600,
   mouseIdleDelay: 300,
   dimOpacity: 0.42,
-  currentHighlightColor: '#f5c518',
-  readHighlightColor: '#4caf50',
-  colorMode: 'system',
-  darkCurrentHighlightColor: '#fde68a',
+  currentHighlightColor: '#f5cd18',
+  readHighlightColor: '#58c05b',
+  darkCurrentHighlightColor: '#f5ab18',
   darkReadHighlightColor: '#86efac',
-  currentWordBackgroundColor: '#fdc57b',
-  darkCurrentWordBackgroundColor: '#fde68a',
+  currentWordBackgroundColor: '#fac278',
+  darkCurrentWordBackgroundColor: '#fbce86',
 };
 
 export interface TabState {

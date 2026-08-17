@@ -138,14 +138,15 @@ describe('RSVP controls', () => {
     const readingStatus = controls.root.querySelector<HTMLElement>('.jri-reading-status strong')!;
     const navigation = controls.root.querySelector('.jri-navigation')!;
 
-    expect(status.textContent).toBe('');
+    expect(status.textContent).toBe('14%');
     expect(readingStatus.querySelector('.jri-reading-time')?.textContent).toBe('~3m left');
-    expect(readingStatus.querySelector('.jri-reading-sentence-position')?.textContent).toBe('12/84');
+    expect(readingStatus.querySelector('.jri-reading-sentence-position')?.textContent).toBe('(12/84 sentences)');
     expect(controls.root.querySelector('.jri-reading-progress')?.textContent).toBe('14%');
     expect(controls.root.querySelector('.jri-reading-progress-ring')?.getAttribute('aria-label')).toBe('14% complete, sentence 12 of 84');
-    expect(status.getAttribute('aria-label')).toBe('Sentence 12 of 84');
+    expect(status.getAttribute('aria-label')).toBeNull();
+    expect(navigation.querySelector('.jri-reading-progress-ring')).not.toBeNull();
     expect(navigation.querySelectorAll('button')).toHaveLength(2);
-    expect(navigation.querySelectorAll('img')).toHaveLength(1);
+    expect(navigation.querySelectorAll('img')).toHaveLength(0);
     controls.destroy();
   });
 
@@ -172,7 +173,7 @@ describe('RSVP controls', () => {
     const status = controls.root.querySelector<HTMLElement>('.jri-reading-status strong')!;
 
     expect(status.querySelector('.jri-reading-time')?.textContent).toBe('~3m left');
-    expect(status.querySelector('.jri-reading-sentence-position')?.textContent).toBe('9271/14443');
+    expect(status.querySelector('.jri-reading-sentence-position')?.textContent).toBe('(9271/14443 sentences)');
     expect(controls.root.querySelector('.jri-reading-progress-ring')?.getAttribute('aria-label')).toBe(
       '64% complete, sentence 9271 of 14443',
     );
@@ -203,7 +204,7 @@ describe('RSVP controls', () => {
     const status = controls.root.querySelector<HTMLElement>('.jri-navigation-status')!;
 
     expect(status.textContent).toBe('');
-    expect(status.getAttribute('aria-label')).toBe('No current sentence. 2 sentences total.');
+    expect(status.getAttribute('aria-label')).toBeNull();
     expect(controls.root.querySelector('.jri-navigation-position-text')).toBeNull();
     expect(controls.root.querySelectorAll<HTMLButtonElement>('.jri-navigation button:disabled')).toHaveLength(2);
     controls.destroy();
@@ -275,7 +276,7 @@ describe('RSVP controls', () => {
     controls.destroy();
   });
 
-  it('shows the completion message without a percentage badge', () => {
+  it('shows the completion message with progress in navigation', () => {
     const controls = createReaderControls(
       document,
       '',
@@ -286,7 +287,7 @@ describe('RSVP controls', () => {
 
     expect(status.querySelector('strong')?.textContent).toBe('Article complete');
     expect(status.textContent).toBe('Article complete');
-    expect(status.querySelector('.jri-reading-progress-ring')?.textContent).toBe('');
+    expect(controls.root.querySelector('.jri-navigation-status')?.textContent).toBe('');
     controls.destroy();
   });
 
@@ -302,7 +303,7 @@ describe('RSVP controls', () => {
     controls.destroy();
   });
 
-  it('puts the progress ring on the left and time in the center before right-aligned actions', () => {
+  it('puts progress in navigation with time left and actions on opposite sides', () => {
     const toggleStarred = vi.fn();
     const openProgressShare = vi.fn();
     const controls = createReaderControls(
@@ -312,12 +313,14 @@ describe('RSVP controls', () => {
       controlState({ currentSentence: 21, totalSentences: 34, status: { minutes: '~2h 5m', text: '' } }),
     );
     const status = controls.root.querySelector('.jri-reading-status')!;
-    const [progressRing, minutes, statusActions] = Array.from(status.children);
+    const [minutes, statusActions] = Array.from(status.children);
 
-    expect(progressRing?.classList.contains('jri-reading-progress-ring')).toBe(true);
+    expect(controls.root.querySelector('.jri-navigation-status .jri-reading-progress-ring')).not.toBeNull();
     expect(minutes?.tagName).toBe('STRONG');
     expect(minutes?.querySelector('.jri-reading-time')?.textContent).toBe('~2h 5m left');
-    expect(minutes?.querySelector('.jri-reading-sentence-position')?.textContent).toBe('22/34');
+    expect(minutes?.querySelector('.jri-reading-sentence-position')?.textContent).toBe('(22/34 sentences)');
+    expect(minutes?.textContent).toContain('~2h 5m left');
+    expect(minutes?.textContent).toContain('22/34');
     expect(statusActions?.classList.contains('jri-status-actions')).toBe(true);
     const [share, star] = Array.from(statusActions!.querySelectorAll<HTMLButtonElement>('button'));
     expect(share?.title).toBe('Continue on another device');
@@ -363,13 +366,17 @@ describe('RSVP controls', () => {
     controls.destroy();
   });
 
-  it('minimizes and restores mobile controls without changing the RSVP view', () => {
+  it('minimizes and restores mobile controls without changing the RSVP view', async () => {
     vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({ matches: query === '(max-width: 600px)' }) as MediaQueryList);
+    const viewport = { offsetTop: 0, offsetLeft: 0, width: 360, height: 600, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    vi.stubGlobal('visualViewport', viewport);
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
     const controls = createReaderControls(document, '', actions(), controlState());
     controls.update(controlState({ rsvpEnabled: true }));
     const bar = controls.root.querySelector<HTMLElement>('#jri-controls')!;
     const minimized = controls.root.querySelector<HTMLElement>('#jri-minimized-controls')!;
     const overlay = controls.root.querySelector<HTMLElement>('#jri-rsvp-overlay')!;
+    Object.defineProperty(bar, 'offsetHeight', { value: 120, configurable: true });
 
     controls.root.querySelector<HTMLButtonElement>('.jri-minimize-controls')!.click();
     expect(bar.hidden).toBe(true);
@@ -382,19 +389,20 @@ describe('RSVP controls', () => {
     expect(guided.title).toBe('Disable Guided Reading');
 
     minimized.querySelector<HTMLButtonElement>('.jri-minimized-restore')!.click();
+    await vi.advanceTimersByTimeAsync(32);
     expect(bar.hidden).toBe(false);
     expect(minimized.hidden).toBe(true);
+    expect(bar.style.top).toBe('472px');
     expect(overlay.hidden).toBe(false);
     controls.destroy();
   });
 
-  it('uses single sentence chevrons with the extension icon between them', () => {
+  it('uses single sentence chevrons', () => {
     const controls = createReaderControls(document, '', actions(), controlState());
     const navigation = controls.root.querySelector('.jri-navigation')!;
-    const center = navigation.querySelector<HTMLImageElement>('.jri-navigation-center');
-    expect(center?.src).toContain('/icons/just-read-it-32.png');
     expect(navigation.querySelectorAll('button')).toHaveLength(2);
     expect(navigation.querySelectorAll('svg')).toHaveLength(2);
+    expect(navigation.querySelector('.jri-navigation-center')).toBeNull();
     controls.destroy();
   });
 

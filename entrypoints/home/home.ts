@@ -51,13 +51,14 @@ const tabElements = Array.from(document.querySelectorAll<HTMLButtonElement>('[ro
 const panelElements = Array.from(document.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
 const preview = document.getElementById('article-preview') as HTMLElement;
 const previewDimming = document.getElementById('preview-dimming') as HTMLInputElement;
+const previewMode = document.getElementById('preview-mode') as HTMLSelectElement;
+previewMode.value = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 const resetSettingsElement = document.getElementById('reset-settings') as HTMLButtonElement;
 const dimOpacity = document.getElementById('dim-opacity') as HTMLInputElement;
 const dimOpacityValue = document.getElementById('dim-opacity-value') as HTMLOutputElement;
 const currentColor = document.getElementById('current-highlight-color') as HTMLInputElement;
 const readColor = document.getElementById('read-highlight-color') as HTMLInputElement;
 const currentWordColor = document.getElementById('current-word-background-color') as HTMLInputElement;
-const colorMode = document.getElementById('color-mode') as HTMLSelectElement;
 const currentColorLabel = document.getElementById('current-color-label') as HTMLElement;
 const readColorLabel = document.getElementById('read-color-label') as HTMLElement;
 const currentWordColorLabel = document.getElementById('current-word-color-label') as HTMLElement;
@@ -99,7 +100,7 @@ function setImportStatus(message: string, error = false): void {
 }
 
 function isDarkMode(): boolean {
-  return settings.colorMode === 'dark' || (settings.colorMode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+  return previewMode.value === 'dark';
 }
 
 function renderSettingsPreview(): void {
@@ -136,7 +137,6 @@ function renderSettingsForm(): void {
   dimOpacity.value = String(Math.round(settings.dimOpacity * 100));
   dimOpacityValue.textContent = `${dimOpacity.value}%`;
   const dark = isDarkMode();
-  colorMode.value = settings.colorMode;
   currentColor.value = dark ? settings.darkCurrentHighlightColor : settings.currentHighlightColor;
   readColor.value = dark ? settings.darkReadHighlightColor : settings.readHighlightColor;
   currentWordColor.value = dark ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor;
@@ -154,6 +154,11 @@ function renderSettingsForm(): void {
 }
 
 function activeTabId(): string {
+  const queryTab = new URLSearchParams(window.location.search).get('tab');
+  if (queryTab) {
+    const panelId = `${queryTab}-panel`;
+    if (panelElements.some((panel) => panel.id === panelId)) return panelId;
+  }
   const id = window.location.hash.slice(1);
   return panelElements.some((panel) => panel.id === id) ? id : 'jump-back-panel';
 }
@@ -729,7 +734,9 @@ overviewRangeElement.addEventListener('change', () => {
 for (const tab of tabElements) {
   tab.addEventListener('click', () => {
     const panelId = tab.getAttribute('aria-controls');
-    if (panelId) window.location.hash = panelId;
+    if (!panelId) return;
+    window.history.pushState(null, '', `#${panelId}`);
+    selectTab(panelId);
   });
 }
 
@@ -760,10 +767,6 @@ currentWordColor.addEventListener('input', () =>
     isDarkMode() ? { darkCurrentWordBackgroundColor: currentWordColor.value } : { currentWordBackgroundColor: currentWordColor.value },
   ),
 );
-colorMode.addEventListener('change', () => {
-  queueSettingsSave({ colorMode: colorMode.value as JriSettings['colorMode'] });
-  renderSettingsForm();
-});
 guidedRate.addEventListener('input', () => {
   const value = Number(guidedRate.value);
   guidedRateValue.textContent = `${value.toFixed(1)}x`;
@@ -781,10 +784,8 @@ rate.addEventListener('input', () => {
 });
 voice.addEventListener('change', () => queueSettingsSave({ voiceURI: voice.value || null }));
 previewDimming.addEventListener('change', renderSettingsPreview);
+previewMode.addEventListener('change', renderSettingsPreview);
 speechSynthesis?.addEventListener('voiceschanged', populateVoices);
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if (settings.colorMode === 'system') renderSettingsForm();
-});
 resetSettingsElement.addEventListener('click', async () => {
   if (!window.confirm('Reset the settings shown on this page?')) return;
   window.clearTimeout(saveSettingsTimer);
@@ -792,7 +793,6 @@ resetSettingsElement.addEventListener('click', async () => {
     dimOpacity: DEFAULT_SETTINGS.dimOpacity,
     currentHighlightColor: DEFAULT_SETTINGS.currentHighlightColor,
     readHighlightColor: DEFAULT_SETTINGS.readHighlightColor,
-    colorMode: DEFAULT_SETTINGS.colorMode,
     darkCurrentHighlightColor: DEFAULT_SETTINGS.darkCurrentHighlightColor,
     darkReadHighlightColor: DEFAULT_SETTINGS.darkReadHighlightColor,
     currentWordBackgroundColor: DEFAULT_SETTINGS.currentWordBackgroundColor,
@@ -854,7 +854,9 @@ browser.storage.onChanged.addListener((changes, area) => {
   });
 });
 
-selectTab(activeTabId());
+const initialTabId = activeTabId();
+if (new URLSearchParams(window.location.search).has('tab')) window.history.replaceState(null, '', window.location.pathname);
+selectTab(initialTabId);
 void loadSettings().then((next) => {
   settings = next;
   renderSettingsForm();

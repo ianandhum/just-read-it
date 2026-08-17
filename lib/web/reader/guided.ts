@@ -159,17 +159,21 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
       clearTimeout(advanceTimer);
       advanceTimer = null;
     }
-    pendingGuidedAdvanceFrom = null;
   }
 
   function resume(): void {
     paused = false;
     guidedPauseUntil = 0;
-    startLoop();
+    if (pendingGuidedAdvanceFrom !== null) {
+      scheduleGuidedAdvance(pendingGuidedAdvanceFrom);
+    } else {
+      startLoop();
+    }
   }
 
   function teardown(): void {
     pause();
+    pendingGuidedAdvanceFrom = null;
   }
 
   return { scheduleGuidedAdvance, startLoop, setGuided, pause, resume, manualPause, teardown };

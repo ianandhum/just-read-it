@@ -14,8 +14,9 @@ html.jri-reader-active .jri-sentence.jri-read {
 
 /* eslint-disable css/no-important */
 html.jri-reader-active .jri-sentence.jri-current {
-  background-color: color-mix(in srgb, var(--jri-current-highlight, #f5c518) 16%, transparent);
-  border-bottom: 2px solid var(--jri-current-highlight, #f5c518);
+  background-color: color-mix(in srgb, var(--jri-current-highlight, #f5ab18) 18%, transparent);
+  border-bottom: 2px solid var(--jri-current-highlight, #f5ab18);
+  color: color-mix(in srgb, currentColor 94%, var(--jri-current-sentence-mix, black) 12%);
   opacity: 1;
   transition:
     background-color 160ms ease,
@@ -29,7 +30,7 @@ html.jri-reader-active .jri-sentence.jri-current.jri-mouse-current {
 /* eslint-enable css/no-important */
 @supports (background-color: color-mix(in srgb, currentColor 10%, transparent)) {
   html.jri-reader-active .jri-sentence.jri-current {
-    border-bottom-color: color-mix(in srgb, var(--jri-current-highlight, #f5c518) 82%, currentColor);
+    border-bottom-color: color-mix(in srgb, var(--jri-current-highlight, #f5ab18) 82%, currentColor);
   }
 }
 
@@ -85,7 +86,7 @@ html.jri-reader-active .jri-word {
 }
 
 html.jri-reader-active .jri-word.jri-word-current {
-  background-color: var(--jri-current-word-background, #f5c518);
+  background-color: var(--jri-current-word-background, #f9ba67);
   color: var(--jri-current-word-color, #171717);
   border-radius: 2px;
   text-decoration: underline;

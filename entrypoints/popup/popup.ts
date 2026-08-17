@@ -112,7 +112,7 @@ window.addEventListener('focus', () => {
   void refreshState();
 });
 openSettingsElement?.addEventListener('click', async () => {
-  await browser.runtime.openOptionsPage();
+  await browser.tabs.create({ url: browser.runtime.getURL('/home.html?tab=preferences'), active: true });
   closePopup();
 });
 enableHistoryElement?.addEventListener('click', async () => {

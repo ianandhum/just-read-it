@@ -35,7 +35,7 @@ export default defineConfig({
       },
     },
     options_ui: {
-      page: '/home.html#preferences-panel',
+      page: '/home.html',
       open_in_tab: true,
     },
     browser_specific_settings: {

@@ -24,7 +24,7 @@ import { createReaderGuided } from '@/lib/web/reader/guided';
 import { createReaderControls, type ReaderControls, type ReaderControlsState, type ReaderStatus } from '@/lib/web/reader/controls';
 import { attachInteraction, type InteractionHandle } from '@/lib/web/reader/interaction';
 import { createProgressBar, type ProgressBar } from '@/lib/web/reader/progress';
-import { applyReaderAppearance, applyReaderFontScale, removeReaderStyle, setCurrentWordContrast } from '@/lib/web/reader/presentation';
+import { applyReaderAppearance, applyReaderFontScale, removeReaderStyle, resolveReaderUiTheme } from '@/lib/web/reader/presentation';
 import { removeSharedProgressFromUrl, shareProgressUrl, sharedProgressFromUrl } from '@/lib/progress_share';
 import { rangesToReadIds } from '@/lib/progress_share';
 
@@ -320,6 +320,9 @@ export default defineContentScript({
       readAloudEnabledGuided = !settings.guidedReading;
       guided.setGuided(true, true);
       speech.startReadingAloud();
+      // Guided mode updates controls before narration starts. Publish the
+      // active Media Session state again after speech has begun.
+      updateControls();
     }
 
     function navigateSentence(direction: 'previous' | 'next'): void {
@@ -743,9 +746,14 @@ export default defineContentScript({
               applySettings({ fontScale: nextFontScale });
               if (sessionUrl) void saveFontScale(sessionUrl, nextFontScale);
             },
+            setReaderUiTheme: (readerUiTheme) => {
+              controls?.setTheme(readerUiTheme === 'auto' ? resolveReaderUiTheme() : readerUiTheme);
+            },
             selectContentCandidate: (candidateId) => selectContentCandidate(candidateId),
           },
           currentControlsState(),
+          resolveReaderUiTheme(),
+          'auto',
         );
         setStatus('Preparing reader controls', { indefinite: true });
         // Let the browser paint the controls before scanning and rewriting a
@@ -800,7 +808,6 @@ export default defineContentScript({
           return 0;
         }
         setStatus('Improving readability', { indefinite: true });
-        setCurrentWordContrast(document);
         setStatus('Wrapping up', { indefinite: true });
         console.log(`[Just Read It] wrapped ${wrap.total} sentences`);
         const ready = await startSession(sessionUrl, activationGen);
