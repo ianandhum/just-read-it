@@ -2,15 +2,6 @@ export const SENTENCE_SELECTOR = '.jri-sentence';
 export const ID_ATTR = 'data-jri-id';
 export const HOVER_CLASS = 'jri-hover';
 
-const READ_COVERED = 0.2;
-const READ_END = 0.9;
-
-// Mouse-driven read, automatically marks a sentence as read when
-// the user spends X% of time hovering over and reached the Y% of the end
-export function shouldMarkReadByMouse(coverage: number, ratio: number): boolean {
-  return coverage > READ_COVERED && ratio > READ_END;
-}
-
 export function idFromTarget(target: EventTarget | null): number | null {
   if (!(target instanceof Element)) return null;
   const span = target.closest(SENTENCE_SELECTOR);

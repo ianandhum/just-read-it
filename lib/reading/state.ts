@@ -41,7 +41,7 @@ export interface ReadingSession {
   markAllReadAsync(): Promise<void>;
   markPreviousRead(): void;
   setProgress(ratio: number): void;
-  getMaxProgress(): number;
+  setWordFocusAt(index: number): void;
   tick(dtMs: number): TickResult;
   moveNext(): number | null;
   advance(): number | null;
@@ -135,9 +135,6 @@ export function createReadingSession(
   const readIds = new Set((initial?.readIds ?? []).filter((id) => byId.has(id)));
   const progressById = new Map<number, number>();
   let currentId: number | null = initial?.currentId ?? null;
-  let maxProgress = 0;
-  let entryPos = 0;
-  let entryPending = false;
   if (currentId !== null && !byId.has(currentId)) currentId = null;
   if (currentId !== null) readIds.delete(currentId);
   let unreadCount = total - readIds.size;
@@ -272,18 +269,11 @@ export function createReadingSession(
 
   renderAll();
 
-  function resetPointer(): void {
-    maxProgress = 0;
-    entryPos = 0;
-    entryPending = false;
-  }
-
   function dispose(): void {
     destroyed = true;
     currentId = null;
     readIds.clear();
     progressById.clear();
-    resetPointer();
     wordFocus = false;
     currentWord = null;
   }
@@ -297,10 +287,6 @@ export function createReadingSession(
       progressById.set(id, 0);
     }
     currentId = id;
-    const p = progressById.get(id) ?? 0;
-    entryPos = p;
-    maxProgress = p;
-    entryPending = true;
     render(id);
   }
 
@@ -319,7 +305,6 @@ export function createReadingSession(
       if (!byId.has(id)) return;
       if (id === currentId) {
         currentId = null;
-        resetPointer();
       }
       markReadId(id);
       renderAll();
@@ -352,23 +337,20 @@ export function createReadingSession(
       }
       if (destroyed) return;
       currentId = null;
-      resetPointer();
       renderAll();
     },
     setProgress(ratio) {
       if (currentId === null) return;
-      const p = clamp(ratio, 0, 1);
-      if (entryPending) {
-        entryPos = p;
-        maxProgress = p;
-        entryPending = false;
-      } else if (p > maxProgress) {
-        maxProgress = p;
-      }
-      setProgressInternal(p);
+      setProgressInternal(ratio);
     },
-    getMaxProgress() {
-      return Math.max(0, maxProgress - entryPos);
+    setWordFocusAt(index) {
+      if (!wordFocus || currentId === null) return;
+      const words = wordsFor(currentId);
+      const nextWord = words[index];
+      if (!nextWord || nextWord === currentWord) return;
+      currentWord?.classList.remove(CURRENT_WORD_CLASS);
+      nextWord.classList.add(CURRENT_WORD_CLASS);
+      currentWord = nextWord;
     },
     tick(dtMs) {
       if (currentId === null) return { completed: false };
@@ -377,11 +359,9 @@ export function createReadingSession(
       const p = progressById.get(id) ?? 0;
       const nextP = clamp(p + dtMs / ms, 0, 1);
       progressById.set(id, nextP);
-      if (nextP > maxProgress) maxProgress = nextP;
       render(id);
       if (nextP >= 1) {
         currentId = null;
-        resetPointer();
         markReadId(id);
         render(id);
         if (lightsOutEnabled && guidedMode) renderAll();
@@ -395,7 +375,6 @@ export function createReadingSession(
       if (unreadCount === 0) {
         if (old !== null) {
           currentId = null;
-          resetPointer();
           render(old);
         }
         return null;
@@ -415,7 +394,6 @@ export function createReadingSession(
       if (old !== null) markReadId(old);
       if (unreadCount === 0) {
         currentId = null;
-        resetPointer();
         if (old !== null) render(old);
         return null;
       }
@@ -430,7 +408,6 @@ export function createReadingSession(
       }
       if (nextId === null) {
         currentId = null;
-        resetPointer();
         if (old !== null) render(old);
         return null;
       }

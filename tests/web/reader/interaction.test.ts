@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHoverController } from '../../../lib/web/reader/hover';
 import { createKeyboardInteraction, isEditable } from '../../../lib/web/reader/keyboard';
+import { attachInteraction } from '../../../lib/web/reader/interaction';
 import { idFromTarget, pointerToProgress } from '../../../lib/web/reader/helpers';
 import { createReadingSession, type ReadingSession } from '../../../lib/reading/state';
 
@@ -36,11 +37,11 @@ function makeSession(ids: number[]): ReadingSession {
     prevWord: () => false,
     setWordFocus: () => {},
     setProgress: () => {},
+    setWordFocusAt: () => {},
     nextUnreadAfter: () => null,
     getSnapshot: () => ({ total: ids.length, currentId, readIds: new Set(readIds) }),
     getStats: () => ({ total: ids.length, readCount: readIds.size, currentId, unreadMs: 0 }),
     getSpeechTiming: () => ({ durationMs: 0, positionMs: 0 }),
-    getMaxProgress: () => 0,
     toPageState: () => ({ url: '', total: ids.length, readRanges: [], currentId, updatedAt: 0 }),
     dispose: () => {},
     destroy: () => {},
@@ -156,6 +157,67 @@ describe('createHoverController', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('attachInteraction', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('enables the current-word highlight while hovering in normal reading mode', () => {
+    const session = makeSession([0]);
+    session.setCurrent(0);
+    const setWordFocus = vi.spyOn(session, 'setWordFocus');
+    const interaction = attachInteraction(document.body, session, {
+      onChange: () => {},
+      onNavigate: () => {},
+      onToggleGuided: () => {},
+      isGuidedReading: () => false,
+      onGuidedArrow: () => {},
+    });
+
+    session.getSpans(0)[0]!.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 1, clientY: 1 }));
+
+    expect(setWordFocus).toHaveBeenCalledWith(true);
+    interaction.detach();
+  });
+
+  it('marks a sentence read after half the words and leaving the last word', () => {
+    const span = document.createElement('span');
+    span.className = 'jri-sentence';
+    span.setAttribute('data-jri-id', '0');
+    span.innerHTML = '<span class="jri-word">one</span> <span class="jri-word">two</span> <span class="jri-word">three</span> <span class="jri-word">four</span>';
+    document.body.appendChild(span);
+    const session = createReadingSession([span], null);
+    session.setCurrent(0);
+    const interaction = attachInteraction(document.body, session, {
+      onChange: () => {},
+      onNavigate: () => {},
+      onToggleGuided: () => {},
+      isGuidedReading: () => false,
+      onGuidedArrow: () => {},
+    });
+
+    session.setWordFocus(true);
+    let wordIndex = 0;
+    document.caretPositionFromPoint = () =>
+      ({
+        offsetNode: span.querySelectorAll('.jri-word')[wordIndex]!.firstChild!,
+        offset: 0,
+        getClientRect: () => new DOMRect(),
+      }) as CaretPosition;
+    span.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    span.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 1, clientY: 1 }));
+    expect(session.isRead(0)).toBe(false);
+    wordIndex = 3;
+    span.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    span.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 1, clientY: 1 }));
+    expect(session.isRead(0)).toBe(false);
+    document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: span }));
+    expect(session.isRead(0)).toBe(true);
+    interaction.detach();
+    session.destroy();
   });
 });
 

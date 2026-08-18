@@ -2,11 +2,9 @@
  * Reader view interactions
  */
 import type { ReadingSession } from '../../reading/state';
-import { shouldMarkReadByMouse, idFromTarget, pointerToProgress, SENTENCE_SELECTOR, ID_ATTR } from './helpers';
+import { idFromTarget, pointerToProgress, SENTENCE_SELECTOR, ID_ATTR } from './helpers';
 import { createHoverController, type HoverController } from './hover';
 import { createKeyboardInteraction, type KeyboardInteraction } from './keyboard';
-
-export { shouldMarkReadByMouse };
 
 export interface InteractionCallbacks {
   onChange: () => void;
@@ -23,12 +21,30 @@ export interface InteractionHandle {
   lastMouseMoveAt: () => number;
 }
 
+const HOVER_AUTO_READ_THRESHOLD = 0.3;
+
 export function attachInteraction(root: Element, session: ReadingSession, cb: InteractionCallbacks): InteractionHandle {
   let mouseInside = false;
   let lastMoveAt = 0;
   let pointerMovedSinceScroll = false;
   let sentenceHovered = false;
   let spanCache: { id: number; spans: HTMLSpanElement[]; lengths: number[]; total: number } | null = null;
+  const hoveredWordsById = new Map<number, Set<HTMLElement>>();
+
+  function markHoveredSentenceRead(id: number): boolean {
+    if (cb.isGuidedReading()) return false;
+    const spans = session.getSpans(id);
+    const words = spans.flatMap((span) => Array.from(span.querySelectorAll<HTMLElement>('.jri-word')));
+    const hoveredWords = hoveredWordsById.get(id);
+    const lastWord = words.at(-1);
+    if (!hoveredWords || !lastWord || !hoveredWords.has(lastWord) || hoveredWords.size < Math.ceil(words.length * HOVER_AUTO_READ_THRESHOLD)) return false;
+    session.markRead(id);
+    hoveredWordsById.delete(id);
+    spanCache = null;
+    mouseInside = false;
+    cb.onChange();
+    return true;
+  }
   let touchStart: { pointerId: number; id: number; x: number; y: number } | null = null;
   let suppressTouchClick = false;
 
@@ -67,6 +83,8 @@ export function attachInteraction(root: Element, session: ReadingSession, cb: In
     if (!(e.target instanceof Element)) return;
     const span = e.target.closest(SENTENCE_SELECTOR);
     if (!span) {
+      const currentId = session.getCurrentId();
+      if (currentId !== null) markHoveredSentenceRead(currentId);
       mouseInside = false;
       hover.clear();
       setSentenceHover(false);
@@ -78,6 +96,7 @@ export function attachInteraction(root: Element, session: ReadingSession, cb: In
     if (Number.isNaN(id)) return;
     setSentenceHover(true);
     const currentId = session.getCurrentId();
+    if (currentId !== null && id !== currentId) markHoveredSentenceRead(currentId);
     if (!cb.isGuidedReading() && currentId !== null && id !== currentId) {
       hover.show(id);
       mouseInside = true;
@@ -116,6 +135,7 @@ export function attachInteraction(root: Element, session: ReadingSession, cb: In
     // Guided hover previews must not move the active sentence’s word focus.
     // Only pointer movement within the active sentence may update progress.
     if (cb.isGuidedReading() && targetId !== id) return;
+    if (!cb.isGuidedReading()) session.setWordFocus(true);
     const spanInfo = currentSpans();
     if (!spanInfo || spanInfo.spans.length === 0) return;
     const me = e as MouseEvent;
@@ -123,12 +143,15 @@ export function attachInteraction(root: Element, session: ReadingSession, cb: In
     if (ratio === null) return;
     session.setProgress(ratio);
     lastMoveAt = performance.now();
-    if (shouldMarkReadByMouse(session.getMaxProgress(), ratio)) {
-      session.markRead(id);
-      spanCache = null;
-      mouseInside = false;
-      cb.onChange();
-    }
+    if (cb.isGuidedReading()) return;
+    const words = spanInfo.spans.flatMap((span) => Array.from(span.querySelectorAll<HTMLElement>('.jri-word')));
+    const hoveredWord = e.target instanceof Element ? e.target.closest<HTMLElement>('.jri-word') : null;
+    if (hoveredWord) session.setWordFocusAt(words.indexOf(hoveredWord));
+    const currentWord = hoveredWord ?? words.find((word) => word.classList.contains('jri-word-current'));
+    if (!currentWord) return;
+    const hoveredWords = hoveredWordsById.get(id) ?? new Set<HTMLElement>();
+    hoveredWords.add(currentWord);
+    hoveredWordsById.set(id, hoveredWords);
   }
 
   function onClick(e: Event): void {

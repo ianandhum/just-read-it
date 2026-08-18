@@ -69,7 +69,7 @@ html.jri-reader-active .jri-sentence.jri-dimmed.jri-current {
 
 html.jri-reader-active body.jri-lights-out-mode:not(.jri-guided-mode) .jri-sentence.jri-dimmed:not(.jri-current),
 html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-dimmed:not(.jri-current) {
-  opacity: var(--jri-dimmed-opacity, 0.42);
+  opacity: var(--jri-dimmed-opacity, 0.4);
 }
 
 html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-dimmed:not(.jri-current).jri-hover {
@@ -80,9 +80,10 @@ html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-dimmed.jri-read:no
   opacity: 0.68;
 }
 
-html.jri-reader-active .jri-word {
-  line-height: 1.7;
-  padding: 5px 1px;
+html.jri-reader-active .jri-sentence {
+  line-height: 2;
+  padding: 3px 1px;
+   cursor: url('/icons/cursor-active-word.svg') 4 4, pointer;
 }
 
 html.jri-reader-active .jri-word.jri-word-current {
@@ -92,7 +93,7 @@ html.jri-reader-active .jri-word.jri-word-current {
   text-decoration: underline;
   text-decoration-color: var(--jri-current-word-color, #171717);
   text-decoration-thickness: 2px;
-  text-underline-offset: 0.15em;
+  text-underline-offset: 0.3em;
 }
 
 @media (forced-colors: active) {
