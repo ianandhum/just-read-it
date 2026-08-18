@@ -128,8 +128,29 @@ html.jri-reader-active .jri-word.jri-word-current {
 
 #jri-party span {
   position: absolute;
+}
+
+#jri-party .jri-party-piece {
   opacity: 0;
-  animation: jri-party-pop 1450ms ease-out forwards;
+  animation: jri-party-pop 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+#jri-party .jri-party-badge {
+  left: var(--jri-party-origin-x);
+  top: var(--jri-party-origin-y);
+  padding: 7px 11px;
+  border: 1px solid color-mix(in srgb, #f5ab18 72%, currentColor);
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 92%, #f5ab18);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 18%);
+  color: #4a3100;
+  font:
+    600 13px/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.78);
+  animation: jri-party-badge 1500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes jri-party-pop {
@@ -138,18 +159,55 @@ html.jri-reader-active .jri-word.jri-word-current {
     transform: translate(0, 0) scale(0) rotate(0deg);
   }
 
-  15% {
+  18% {
     opacity: 1;
-    transform: translate(0, 0) scale(1.5) rotate(120deg);
+    transform: translate(0, 0) scale(1.35) rotate(90deg);
   }
 
-  62% {
-    opacity: 1;
+  72% {
+    opacity: 0.9;
     transform: translate(var(--jri-x), var(--jri-y)) scale(1) rotate(420deg);
   }
 
   100% {
     opacity: 0;
-    transform: translate(var(--jri-x), calc(var(--jri-y) + 120px)) scale(0.2) rotate(720deg);
+    transform: translate(var(--jri-x), var(--jri-y)) scale(0.5) rotate(540deg);
+  }
+}
+
+@keyframes jri-party-badge {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.78);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+
+  25% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  78% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #jri-party .jri-party-piece {
+    display: none;
+  }
+
+  #jri-party .jri-party-badge {
+    animation: none;
+    opacity: 1;
+    transform: translate(-50%, -50%);
   }
 }

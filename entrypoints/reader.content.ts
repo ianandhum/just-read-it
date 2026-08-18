@@ -370,28 +370,42 @@ export default defineContentScript({
       removeParty();
       const party = document.createElement('div');
       party.id = 'jri-party';
+      party.setAttribute('aria-hidden', 'true');
+      const completedSentence = document.querySelector<HTMLElement>('.jri-sentence.jri-current');
+      const sentenceRect = completedSentence?.getBoundingClientRect();
+      const originX = sentenceRect ? sentenceRect.left + sentenceRect.width / 2 : window.innerWidth / 2;
+      const originY = sentenceRect ? sentenceRect.top + sentenceRect.height / 2 : window.innerHeight / 2;
+      party.style.setProperty('--jri-party-origin-x', `${Math.round(originX)}px`);
+      party.style.setProperty('--jri-party-origin-y', `${Math.round(originY)}px`);
+
+      const badge = document.createElement('span');
+      badge.className = 'jri-party-badge';
+      badge.textContent = 'Article complete';
+      party.appendChild(badge);
+
       const colors = ['#f5c518', '#4caf50', '#2563eb', '#e85d75', '#ff9800', '#9c27b0'];
-      for (let i = 0; i < 104; i++) {
+      for (let i = 0; i < 40; i++) {
         const piece = document.createElement('span');
-        piece.style.left = '50%';
-        piece.style.bottom = '0';
+        piece.className = 'jri-party-piece';
+        piece.style.left = `${Math.round(originX)}px`;
+        piece.style.top = `${Math.round(originY)}px`;
         const size = 5 + Math.random() * 7;
         piece.style.width = `${size}px`;
         piece.style.height = `${size * (Math.random() > 0.5 ? 1 : 0.4)}px`;
         piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-        const angle = (Math.random() - 0.5) * 1.05;
-        const dist = 420 + Math.random() * 620;
-        const vx = angle * dist;
-        const vy = -(220 + Math.random() * 620);
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 70 + Math.random() * 140;
+        const vx = Math.cos(angle) * dist;
+        const vy = Math.sin(angle) * dist;
         piece.style.setProperty('--jri-x', `${Math.round(vx)}px`);
         piece.style.setProperty('--jri-y', `${Math.round(vy)}px`);
         piece.style.backgroundColor = colors[i % colors.length]!;
-        piece.style.animationDelay = `${Math.random() * 400}ms`;
+        piece.style.animationDelay = `${Math.random() * 100}ms`;
         party.appendChild(piece);
       }
       document.body?.appendChild(party);
       partyElement = party;
-      partyTimer = setTimeout(removeParty, 2900);
+      partyTimer = setTimeout(removeParty, 1800);
     }
 
     function markPreviousRead(): void {

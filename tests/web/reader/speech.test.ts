@@ -6,9 +6,11 @@ import type { ReadingSession } from '../../../lib/reading/state';
 describe('reader speech completion', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('releases narration before announcing a completed article', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     const speak = vi.fn();
     const cancel = vi.fn();
     class TestUtterance {
@@ -58,6 +60,6 @@ describe('reader speech completion', () => {
     expect(cancel).toHaveBeenCalledOnce();
     expect(speech.readingAloud).toBe(false);
     expect(speak).toHaveBeenCalledTimes(2);
-    expect((speak.mock.calls[1]?.[0] as SpeechSynthesisUtterance).text).toBe('Article is Complete, Nice work!');
+    expect((speak.mock.calls[1]?.[0] as SpeechSynthesisUtterance).text).toBe('You finished the article. Nice work.');
   });
 });

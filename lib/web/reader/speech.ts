@@ -4,6 +4,17 @@ import { createMediaSessionQuirk } from './media_session_quirk';
 
 type SpeechBackend = 'extension' | 'web' | 'none';
 
+const COMPLETION_ANNOUNCEMENTS = [
+  'You finished the article. Nice work.',
+  "That's the article. Nicely done.",
+  'Article complete. Well read.',
+  'You made it to the end. Nice work.',
+  'Finished. Take a moment to enjoy that.',
+  "That's a wrap. Great reading.",
+  'Article complete. The next one can wait.',
+  "You've finished this one. Well done.",
+] as const;
+
 export interface ReaderSpeechContext {
   getSession(): ReadingSession | null;
   getSettings(): JriSettings;
@@ -124,7 +135,9 @@ export function createReaderSpeech(context: ReaderSpeechContext): ReaderSpeech {
 
   function announceCompletion(): void {
     const settings = context.getSettings();
-    const text = 'Article is Complete, Nice work!';
+    const announcementCount = COMPLETION_ANNOUNCEMENTS.length;
+    const announcementIndex = Math.floor(Math.random() * announcementCount);
+    const text = COMPLETION_ANNOUNCEMENTS[announcementIndex]!;
     if (speechBackend === 'extension') {
       void browser.runtime
         .sendMessage({
