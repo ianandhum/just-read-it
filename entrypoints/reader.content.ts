@@ -440,7 +440,7 @@ export default defineContentScript({
       const savedFontScale = await loadFontScale(url);
       if (tornDown || !readerEnabled || !wrap || gen !== activationGen || location.href !== url) return false;
       settings = loadedSettings;
-      applySettings({ fontScale: savedFontScale ?? 1 });
+      applySettings({ fontScale: savedFontScale ?? settings.fontScale });
 
       try {
         setStatus('Checking Read Aloud', { indefinite: true });

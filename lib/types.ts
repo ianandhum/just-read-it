@@ -46,6 +46,7 @@ export interface JriSettings {
   guidedManualPause: number;
   mouseIdleDelay: number;
   dimOpacity: number;
+  fontScale: number;
   currentHighlightColor: string;
   readHighlightColor: string;
   darkCurrentHighlightColor: string;
@@ -66,6 +67,7 @@ export const DEFAULT_SETTINGS: JriSettings = {
   guidedManualPause: 600,
   mouseIdleDelay: 300,
   dimOpacity: 0.42,
+  fontScale: 1,
   currentHighlightColor: '#f5cd18',
   readHighlightColor: '#58c05b',
   darkCurrentHighlightColor: '#f5ab18',

@@ -139,6 +139,7 @@ function isSettings(value: unknown): value is JriSettings {
     typeof settings.guidedManualPause === 'number' &&
     typeof settings.mouseIdleDelay === 'number' &&
     (settings.dimOpacity === undefined || typeof settings.dimOpacity === 'number') &&
+    (settings.fontScale === undefined || typeof settings.fontScale === 'number') &&
     (settings.currentHighlightColor === undefined || typeof settings.currentHighlightColor === 'string') &&
     (settings.readHighlightColor === undefined || typeof settings.readHighlightColor === 'string') &&
     (settings.darkCurrentHighlightColor === undefined || typeof settings.darkCurrentHighlightColor === 'string') &&
@@ -260,6 +261,7 @@ export async function loadSettings(): Promise<JriSettings> {
     readingHistoryEnabled,
     guidedRate: Math.min(3, Math.max(0.5, stored?.guidedRate ?? DEFAULT_SETTINGS.guidedRate)),
     dimOpacity: Math.min(0.9, Math.max(0, stored?.dimOpacity ?? DEFAULT_SETTINGS.dimOpacity)),
+    fontScale: Math.min(5, Math.max(0.5, stored?.fontScale ?? DEFAULT_SETTINGS.fontScale)),
   };
 }
 

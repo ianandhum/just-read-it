@@ -4,6 +4,7 @@ import {
   importData,
   listenTimeByDay,
   loadFontScale,
+  loadSettings,
   readingTimeByDay,
   saveFontScale,
   summarizeReadingProgress,
@@ -121,5 +122,11 @@ describe('per-domain font scale', () => {
     const get = browser.storage.sync.get as unknown as { mockResolvedValueOnce(value: Record<string, unknown>): void };
     get.mockResolvedValueOnce({ 'jri:font-scale:example.com': 'large' });
     expect(await loadFontScale('https://example.com/article')).toBeNull();
+  });
+
+  it('uses the global font scale as the default for sites without an override', async () => {
+    const get = browser.storage.sync.get as unknown as { mockResolvedValueOnce(value: Record<string, unknown>): void };
+    get.mockResolvedValueOnce({ 'jri:settings': { ...DEFAULT_SETTINGS, fontScale: 1.8 } });
+    expect((await loadSettings()).fontScale).toBe(1.8);
   });
 });

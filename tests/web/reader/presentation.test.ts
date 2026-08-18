@@ -26,7 +26,7 @@ describe('setCurrentWordContrast', () => {
 
     setCurrentWordContrast(document, DEFAULT_SETTINGS, 'light');
 
-    expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('#fdc57b');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('#fac278');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-color')).toBe('#171717');
   });
 
@@ -35,7 +35,7 @@ describe('setCurrentWordContrast', () => {
 
     setCurrentWordContrast(document, DEFAULT_SETTINGS, 'dark');
 
-    expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('#fde68a');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('#fbce86');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-color')).toBe('#171717');
   });
 

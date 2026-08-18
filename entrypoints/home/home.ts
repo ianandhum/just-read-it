@@ -56,6 +56,8 @@ previewMode.value = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' 
 const resetSettingsElement = document.getElementById('reset-settings') as HTMLButtonElement;
 const dimOpacity = document.getElementById('dim-opacity') as HTMLInputElement;
 const dimOpacityValue = document.getElementById('dim-opacity-value') as HTMLOutputElement;
+const fontScale = document.getElementById('font-scale') as HTMLInputElement;
+const fontScaleValue = document.getElementById('font-scale-value') as HTMLOutputElement;
 const currentColor = document.getElementById('current-highlight-color') as HTMLInputElement;
 const readColor = document.getElementById('read-highlight-color') as HTMLInputElement;
 const currentWordColor = document.getElementById('current-word-background-color') as HTMLInputElement;
@@ -136,6 +138,8 @@ function populateVoices(): void {
 function renderSettingsForm(): void {
   dimOpacity.value = String(Math.round(settings.dimOpacity * 100));
   dimOpacityValue.textContent = `${dimOpacity.value}%`;
+  fontScale.value = String(settings.fontScale);
+  fontScaleValue.textContent = `${settings.fontScale.toFixed(1)}x`;
   const dark = isDarkMode();
   currentColor.value = dark ? settings.darkCurrentHighlightColor : settings.currentHighlightColor;
   readColor.value = dark ? settings.darkReadHighlightColor : settings.readHighlightColor;
@@ -756,6 +760,11 @@ dimOpacity.addEventListener('input', () => {
   dimOpacityValue.textContent = `${dimOpacity.value}%`;
   queueSettingsSave({ dimOpacity: Number(dimOpacity.value) / 100 });
 });
+fontScale.addEventListener('input', () => {
+  const value = Number(fontScale.value);
+  fontScaleValue.textContent = `${value.toFixed(1)}x`;
+  queueSettingsSave({ fontScale: value });
+});
 currentColor.addEventListener('input', () =>
   queueSettingsSave(isDarkMode() ? { darkCurrentHighlightColor: currentColor.value } : { currentHighlightColor: currentColor.value }),
 );
@@ -791,6 +800,7 @@ resetSettingsElement.addEventListener('click', async () => {
   window.clearTimeout(saveSettingsTimer);
   settings = await saveSettings({
     dimOpacity: DEFAULT_SETTINGS.dimOpacity,
+    fontScale: DEFAULT_SETTINGS.fontScale,
     currentHighlightColor: DEFAULT_SETTINGS.currentHighlightColor,
     readHighlightColor: DEFAULT_SETTINGS.readHighlightColor,
     darkCurrentHighlightColor: DEFAULT_SETTINGS.darkCurrentHighlightColor,
