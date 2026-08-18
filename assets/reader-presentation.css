@@ -142,6 +142,12 @@
   white-space: nowrap;
 }
 
+#jri-status-pane .jri-reading-status:has(.jri-reading-loader:not([hidden])) {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
 #jri-status-pane .jri-status-actions {
   display: inline-flex;
   justify-self: end;
@@ -249,7 +255,8 @@
   cursor: grabbing;
 }
 
-#jri-status-pane .jri-reading-minutes {
+#jri-status-pane .jri-reading-text,
+#jri-status-pane .jri-reading-loader {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -261,6 +268,12 @@
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+#jri-status-pane .jri-reading-loader {
+  justify-content: center;
+  padding-inline: 4px;
+  text-align: center;
 }
 
 #jri-status-pane .jri-reading-time {
@@ -282,8 +295,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   margin-inline: 4px;
   overflow: hidden;
   border-radius: 50%;
@@ -324,7 +337,7 @@
 #jri-status-pane .jri-reading-progress-ring::before,
 #jri-controls .jri-reading-progress-ring::before {
   position: absolute;
-  inset: 2px;
+  inset: 4px;
   border-radius: inherit;
   background: var(--jri-ui-surface);
   content: '';
@@ -333,10 +346,10 @@
 #jri-status-pane .jri-reading-progress,
 #jri-controls .jri-reading-progress {
   position: relative;
-  font-size: 8px;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   line-height: 1;
 }
 
@@ -1648,7 +1661,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
     min-width: 0;
     min-height: 34px;
@@ -1675,17 +1688,29 @@
     padding: 0;
   }
 
-  #jri-status-pane .jri-reading-status .jri-reading-minutes {
+  #jri-status-pane .jri-reading-status .jri-reading-text,
+  #jri-status-pane .jri-reading-status .jri-reading-loader {
+    width: 100%;
+    min-width: 0;
     min-height: 34px;
     padding: 0;
     display: flex;
     align-items: center;
     text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #jri-status-pane .jri-reading-status .jri-reading-loader {
+    justify-content: center;
+    padding-inline: 4px;
+    text-align: center;
   }
 
   #jri-status-pane .jri-reading-progress-ring {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
   }
 
   #jri-minimized-controls {
@@ -1723,4 +1748,9 @@
   #jri-controls>#jri-status-pane {
     margin-bottom: 3px;
   }
+}
+
+#jri-status-pane .jri-reading-status .jri-reading-text[hidden],
+#jri-status-pane .jri-reading-status .jri-reading-loader[hidden] {
+  display: none;
 }

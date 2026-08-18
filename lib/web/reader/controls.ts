@@ -182,7 +182,8 @@ function createStatusElement(
   actions: ControlActions,
 ): {
   element: HTMLDivElement;
-  minutes: HTMLElement;
+  text: HTMLElement;
+  loader: HTMLElement;
   progress: HTMLElement;
   progressRing: HTMLElement;
   actions: HTMLSpanElement;
@@ -193,8 +194,11 @@ function createStatusElement(
   element.id = STATUS_ID;
   element.setAttribute('role', 'status');
   element.setAttribute('aria-live', 'polite');
-  const minutes = doc.createElement('strong');
-  minutes.className = 'jri-reading-minutes';
+  const text = doc.createElement('strong');
+  text.className = 'jri-reading-text';
+  const loader = doc.createElement('strong');
+  loader.className = 'jri-reading-loader';
+  loader.hidden = true;
   const progressRing = doc.createElement('span');
   progressRing.className = 'jri-reading-progress-ring';
   progressRing.setAttribute('role', 'img');
@@ -210,9 +214,9 @@ function createStatusElement(
   actionGroup.append(share, star);
   const copy = doc.createElement('span');
   copy.className = 'jri-reading-status';
-  copy.append(minutes, actionGroup);
+  copy.append(text, loader, actionGroup);
   element.append(copy);
-  return { element, minutes, progress, progressRing, actions: actionGroup, star, share };
+  return { element, text, loader, progress, progressRing, actions: actionGroup, star, share };
 }
 
 function createMinimizedControls(
@@ -313,7 +317,8 @@ export function createReaderControls(
   const toolbar = createToolbar(doc);
   const {
     element: statusElement,
-    minutes: statusMinutes,
+    text: statusText,
+    loader: statusLoader,
     progress: statusProgress,
     progressRing: statusProgressRing,
     actions: statusActions,
@@ -380,7 +385,8 @@ export function createReaderControls(
       toolbarControls,
       settings,
       rsvp,
-      statusMinutes,
+      statusText,
+      statusLoader,
       statusProgress,
       statusProgressRing,
       statusActions,
@@ -425,9 +431,11 @@ export function createReaderControls(
       const text = status.replace(/\s+/g, ' ').trim();
       const progressMatch = text.match(/(?:^|\s)(\d{1,3})%\s*$/u);
       const progress = options.progress ?? (progressMatch ? Math.min(100, Number(progressMatch[1])) : null);
-      const statusText = progressMatch ? text.slice(0, progressMatch.index).trimEnd() : text;
-      statusMinutes.textContent = statusText;
-      statusMinutes.title = text;
+      const loaderText = progressMatch ? text.slice(0, progressMatch.index).trimEnd() : text;
+      statusText.hidden = true;
+      statusLoader.hidden = false;
+      statusLoader.textContent = loaderText;
+      statusLoader.title = text;
       statusProgress.textContent = progress === null ? '' : `${progress}%`;
       if (progress === null) statusProgressRing.style.removeProperty('--jri-progress');
       else statusProgressRing.style.setProperty('--jri-progress', `${progress}%`);
@@ -1115,7 +1123,8 @@ function updateReaderControls(
   toolbar: ReturnType<typeof createToolbarControls>,
   settings: SettingsControls,
   rsvp: RsvpControls,
-  statusMinutes: HTMLElement,
+  statusCopy: HTMLElement,
+  statusLoader: HTMLElement,
   statusProgress: HTMLElement,
   statusProgressRing: HTMLElement,
   statusActions: HTMLElement,
@@ -1186,8 +1195,12 @@ function updateReaderControls(
   position.className = 'jri-reading-sentence-position';
   position.textContent = sentencePosition ? `(${sentencePosition} sentences)` : '';
   position.hidden = !sentencePosition;
-  statusMinutes.replaceChildren(time, position);
-  statusMinutes.title = statusText;
+  statusCopy.hidden = false;
+  statusCopy.replaceChildren(time, position);
+  statusCopy.title = statusText;
+  statusLoader.hidden = true;
+  statusLoader.replaceChildren();
+  statusLoader.removeAttribute('title');
   statusProgress.textContent = state.status.text || state.complete ? '' : (state.status.progress ?? `${Math.floor(progress)}%`);
   statusProgressRing.style.setProperty('--jri-progress', `${progress}%`);
   statusProgressRing.dataset.indefinite = 'false';

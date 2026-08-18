@@ -197,7 +197,8 @@ export default defineContentScript({
           text: '',
         };
       }
-      const minutes = Math.max(1, Math.ceil(stats.unreadMs / 60_000));
+      const speed = speech.readingAloud ? settings.rate : settings.guidedReading ? settings.guidedRate : 1;
+      const minutes = Math.max(1, Math.ceil(stats.unreadMs / speed / 60_000));
       const hours = Math.floor(minutes / 60);
       const remaining = hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
       const percent = stats.total > 0 ? Math.floor((stats.readCount / stats.total) * 100) : 0;
@@ -305,6 +306,7 @@ export default defineContentScript({
     }
 
     function updateControls(): void {
+      if (session && !statusText.text) statusText = readingStatus(session.getStats());
       controls?.update(currentControlsState());
       mediaSession.update(
         speech.readingAloud && !speech.paused,

@@ -135,7 +135,7 @@ describe('RSVP controls', () => {
       controlState({ currentSentence: 11, totalSentences: 84, status: { minutes: '~3m', text: '' } }),
     );
     const status = controls.root.querySelector<HTMLElement>('.jri-navigation-status')!;
-    const readingStatus = controls.root.querySelector<HTMLElement>('.jri-reading-status strong')!;
+    const readingStatus = controls.root.querySelector<HTMLElement>('.jri-reading-text')!;
     const navigation = controls.root.querySelector('.jri-navigation')!;
 
     expect(status.textContent).toBe('14%');
@@ -170,7 +170,7 @@ describe('RSVP controls', () => {
       actions(),
       controlState({ currentSentence: 9270, totalSentences: 14443, status: { minutes: '~3m', text: '' } }),
     );
-    const status = controls.root.querySelector<HTMLElement>('.jri-reading-status strong')!;
+    const status = controls.root.querySelector<HTMLElement>('.jri-reading-text')!;
 
     expect(status.querySelector('.jri-reading-time')?.textContent).toBe('~3m left');
     expect(status.querySelector('.jri-reading-sentence-position')?.textContent).toBe('(9271/14443 sentences)');
@@ -212,7 +212,7 @@ describe('RSVP controls', () => {
 
   it('removes the sentence count from the status after the article is complete', () => {
     const controls = createReaderControls(document, '', actions(), controlState({ currentSentence: 48, totalSentences: 49 }));
-    const status = controls.root.querySelector<HTMLElement>('.jri-reading-status strong')!;
+    const status = controls.root.querySelector<HTMLElement>('.jri-reading-text')!;
 
     controls.update(
       controlState({ currentSentence: null, totalSentences: 49, complete: true, status: { minutes: 'Article complete', text: '' } }),
@@ -247,7 +247,25 @@ describe('RSVP controls', () => {
     expect(progressRing.textContent).toBe('38%');
     expect(progressRing.style.getPropertyValue('--jri-progress')).toBe('38%');
     expect(progressRing.getAttribute('aria-label')).toBe('38% complete');
-    expect(controls.root.querySelector('.jri-reading-minutes')?.textContent).toBe('Preparing your reading view');
+    expect(controls.root.querySelector<HTMLElement>('.jri-reading-text')?.hidden).toBe(true);
+    const loader = controls.root.querySelector<HTMLElement>('.jri-reading-loader')!;
+    expect(loader.hidden).toBe(false);
+    expect(loader.textContent).toBe('Preparing your reading view');
+    controls.destroy();
+  });
+
+  it('replaces the loader with the reading text once the reader is ready', () => {
+    const controls = createReaderControls(document, '', actions(), controlState());
+
+    controls.setStatus('Preparing your reading view', { indefinite: true });
+    controls.update(controlState({ currentSentence: 0, totalSentences: 10, status: { minutes: '~2m', text: '' } }));
+
+    const text = controls.root.querySelector<HTMLElement>('.jri-reading-text')!;
+    const loader = controls.root.querySelector<HTMLElement>('.jri-reading-loader')!;
+    expect(text.hidden).toBe(false);
+    expect(text.textContent).toBe('~2m left(1/10 sentences)');
+    expect(loader.hidden).toBe(true);
+    expect(loader.textContent).toBe('');
     controls.destroy();
   });
 
@@ -285,7 +303,7 @@ describe('RSVP controls', () => {
     );
     const status = controls.root.querySelector('.jri-reading-status')!;
 
-    expect(status.querySelector('strong')?.textContent).toBe('Article complete');
+    expect(status.querySelector('.jri-reading-text')?.textContent).toBe('Article complete');
     expect(status.textContent).toBe('Article complete');
     expect(controls.root.querySelector('.jri-navigation-status')?.textContent).toBe('');
     controls.destroy();
@@ -313,14 +331,15 @@ describe('RSVP controls', () => {
       controlState({ currentSentence: 21, totalSentences: 34, status: { minutes: '~2h 5m', text: '' } }),
     );
     const status = controls.root.querySelector('.jri-reading-status')!;
-    const [minutes, statusActions] = Array.from(status.children);
+    const [minutes, loader, statusActions] = Array.from(status.children);
 
     expect(controls.root.querySelector('.jri-navigation-status .jri-reading-progress-ring')).not.toBeNull();
-    expect(minutes?.tagName).toBe('STRONG');
+    expect(minutes?.classList.contains('jri-reading-text')).toBe(true);
     expect(minutes?.querySelector('.jri-reading-time')?.textContent).toBe('~2h 5m left');
     expect(minutes?.querySelector('.jri-reading-sentence-position')?.textContent).toBe('(22/34 sentences)');
     expect(minutes?.textContent).toContain('~2h 5m left');
     expect(minutes?.textContent).toContain('22/34');
+    expect((loader as HTMLElement | undefined)?.hidden).toBe(true);
     expect(statusActions?.classList.contains('jri-status-actions')).toBe(true);
     const [share, star] = Array.from(statusActions!.querySelectorAll<HTMLButtonElement>('button'));
     expect(share?.title).toBe('Continue on another device');
