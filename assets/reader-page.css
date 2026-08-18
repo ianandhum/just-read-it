@@ -81,19 +81,19 @@ html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-dimmed.jri-read:no
 }
 
 html.jri-reader-active .jri-sentence {
-  line-height: 2;
-  padding: 3px 1px;
+  line-height: 2.2;
+  padding: 2px 1px;
    cursor: url('/icons/cursor-active-word.svg') 4 4, pointer;
 }
 
 html.jri-reader-active .jri-word.jri-word-current {
   background-color: var(--jri-current-word-background, #f9ba67);
   color: var(--jri-current-word-color, #171717);
-  border-radius: 2px;
+  border-radius: 3px;
   text-decoration: underline;
   text-decoration-color: var(--jri-current-word-color, #171717);
   text-decoration-thickness: 2px;
-  text-underline-offset: 0.3em;
+  text-underline-offset: 0.15em;
 }
 
 @media (forced-colors: active) {
