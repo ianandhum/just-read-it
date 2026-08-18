@@ -68,12 +68,12 @@ export const DEFAULT_SETTINGS: JriSettings = {
   mouseIdleDelay: 300,
   dimOpacity: 0.42,
   fontScale: 1,
-  currentHighlightColor: '#f5cd18',
+  currentHighlightColor: '#ffc95e',
   readHighlightColor: '#58c05b',
-  darkCurrentHighlightColor: '#f5ab18',
+  darkCurrentHighlightColor: '#ffc95e',
   darkReadHighlightColor: '#86efac',
-  currentWordBackgroundColor: '#fac278',
-  darkCurrentWordBackgroundColor: '#fbce86',
+  currentWordBackgroundColor: '#ffce85',
+  darkCurrentWordBackgroundColor: '#ffdca7',
 };
 
 export interface TabState {

@@ -13,15 +13,15 @@ html.jri-reader-active .jri-sentence {
 }
 
 html.jri-reader-active .jri-sentence.jri-read {
-  background-color: color-mix(in srgb, var(--jri-read-highlight, #4caf50) 18%, transparent);
+  background-color: color-mix(in srgb, var(--jri-read-highlight) 18%, transparent);
   background-image: none;
   opacity: 1;
 }
 
 /* eslint-disable css/no-important */
 html.jri-reader-active .jri-sentence.jri-current {
-  background-color: color-mix(in srgb, var(--jri-current-highlight, #f5ab18) 18%, transparent);
-  border-bottom-color: var(--jri-current-highlight, #f5ab18);
+  background-color: color-mix(in srgb, var(--jri-current-highlight) 18%, transparent);
+  border-bottom-color: var(--jri-current-highlight);
   color: color-mix(in srgb, currentColor 94%, var(--jri-current-sentence-mix, black) 12%);
   opacity: 1;
   transition:
@@ -33,15 +33,14 @@ html.jri-reader-active .jri-sentence.jri-current.jri-mouse-current {
   transition: opacity 0s !important;
 }
 
-/* eslint-enable css/no-important */
 @supports (background-color: color-mix(in srgb, currentColor 10%, transparent)) {
   html.jri-reader-active .jri-sentence.jri-current {
-    border-bottom-color: color-mix(in srgb, var(--jri-current-highlight, #f5ab18) 82%, currentColor);
+    border-bottom-color: color-mix(in srgb, var(--jri-current-highlight) 82%, currentColor);
   }
 }
 
 html.jri-reader-active .jri-sentence.jri-current.jri-read {
-  background-color: color-mix(in srgb, var(--jri-read-highlight, #4caf50) 24%, white);
+  background-color: color-mix(in srgb, var(--jri-read-highlight) 24%, white);
 }
 
 html.jri-reader-active .jri-sentence.jri-hover {
@@ -89,7 +88,7 @@ html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-dimmed.jri-read:no
 @supports selector(.jri-sentence:has(.jri-word-current)) {
   /* Keep the active word prominent without dimming the sentence's surrounding context too heavily. */
   html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-current:has(.jri-word-current) .jri-word:not(.jri-word-current) {
-    opacity: 0.7;
+    opacity: 0.8;
   }
 }
 
@@ -104,7 +103,7 @@ html.jri-reader-active .jri-word {
 }
 
 html.jri-reader-active .jri-word.jri-word-current {
-  background-color: var(--jri-current-word-background, #f9ba67);
+  background-color: var(--jri-current-word-background);
   color: var(--jri-current-word-color, #171717);
   border-bottom: 2px solid currentColor;
   border-radius: 0;
