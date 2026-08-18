@@ -37,7 +37,13 @@ export function attachInteraction(root: Element, session: ReadingSession, cb: In
     const words = spans.flatMap((span) => Array.from(span.querySelectorAll<HTMLElement>('.jri-word')));
     const hoveredWords = hoveredWordsById.get(id);
     const lastWord = words.at(-1);
-    if (!hoveredWords || !lastWord || !hoveredWords.has(lastWord) || hoveredWords.size < Math.ceil(words.length * HOVER_AUTO_READ_THRESHOLD)) return false;
+    if (
+      !hoveredWords ||
+      !lastWord ||
+      !hoveredWords.has(lastWord) ||
+      hoveredWords.size < Math.ceil(words.length * HOVER_AUTO_READ_THRESHOLD)
+    )
+      return false;
     session.markRead(id);
     hoveredWordsById.delete(id);
     spanCache = null;

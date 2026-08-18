@@ -187,7 +187,8 @@ describe('attachInteraction', () => {
     const span = document.createElement('span');
     span.className = 'jri-sentence';
     span.setAttribute('data-jri-id', '0');
-    span.innerHTML = '<span class="jri-word">one</span> <span class="jri-word">two</span> <span class="jri-word">three</span> <span class="jri-word">four</span>';
+    span.innerHTML =
+      '<span class="jri-word">one</span> <span class="jri-word">two</span> <span class="jri-word">three</span> <span class="jri-word">four</span>';
     document.body.appendChild(span);
     const session = createReadingSession([span], null);
     session.setCurrent(0);

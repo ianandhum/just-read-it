@@ -1168,7 +1168,11 @@ function updateReaderControls(
   updateIconButton(toolbar.lightsOut, state.lightsOut, 'Turn Auto Dimming off', 'Turn Auto Dimming on', ICONS.spotlight, ICONS.spotlight);
   updateIconButton(statusStar, state.starred, 'Unstar article', 'Star article', ICONS.star, ICONS.star);
   const currentSentence = state.currentSentence === null ? null : state.currentSentence + 1;
-  const progress = state.complete ? 100 : state.totalSentences > 0 && currentSentence !== null ? (currentSentence / state.totalSentences) * 100 : 0;
+  const progress = state.complete
+    ? 100
+    : state.totalSentences > 0 && currentSentence !== null
+      ? (currentSentence / state.totalSentences) * 100
+      : 0;
   toolbar.previous.disabled = state.currentSentence === null || state.currentSentence <= 0;
   toolbar.next.disabled = state.currentSentence === null || state.currentSentence >= state.totalSentences - 1;
   updateSpeedControl(settings.aloudSpeed, state.rate);

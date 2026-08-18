@@ -39,7 +39,17 @@ describe('progress sharing', () => {
   it('uses a shorter binary payload for new jri.v2 continuation links', () => {
     const progress = { total: 120, readIds: [...Array(18).keys(), 25, 26, 27, 28, 29, 30, 31, 40, 41, 42], currentId: 42 };
     const encoded = encodeSharedProgress(progress);
-    const jsonPayload = btoa(JSON.stringify([120, 42, [[0, 18], [25, 7], [40, 3]]]))
+    const jsonPayload = btoa(
+      JSON.stringify([
+        120,
+        42,
+        [
+          [0, 18],
+          [25, 7],
+          [40, 3],
+        ],
+      ]),
+    )
       .replaceAll('+', '-')
       .replaceAll('/', '_')
       .replace(/=+$/, '');

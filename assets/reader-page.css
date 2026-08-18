@@ -1,6 +1,12 @@
 html.jri-reader-active .jri-sentence {
+  border-bottom: 2px solid transparent;
   border-radius: 2px;
   font-size: calc(1em * var(--jri-font-scale, 1));
+  line-height: 1.7;
+  padding: 0 1px;
+  text-align: start;
+  text-justify: auto;
+  word-spacing: normal;
   transition:
     background-color 160ms ease,
     opacity 3s ease;
@@ -15,7 +21,7 @@ html.jri-reader-active .jri-sentence.jri-read {
 /* eslint-disable css/no-important */
 html.jri-reader-active .jri-sentence.jri-current {
   background-color: color-mix(in srgb, var(--jri-current-highlight, #f5ab18) 18%, transparent);
-  border-bottom: 2px solid var(--jri-current-highlight, #f5ab18);
+  border-bottom-color: var(--jri-current-highlight, #f5ab18);
   color: color-mix(in srgb, currentColor 94%, var(--jri-current-sentence-mix, black) 12%);
   opacity: 1;
   transition:
@@ -80,25 +86,34 @@ html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-dimmed.jri-read:no
   opacity: 0.68;
 }
 
+@supports selector(.jri-sentence:has(.jri-word-current)) {
+  /* Keep the active word prominent without dimming the sentence's surrounding context too heavily. */
+  html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-current:has(.jri-word-current) .jri-word:not(.jri-word-current) {
+    opacity: 0.7;
+  }
+}
+
 html.jri-reader-active .jri-sentence {
-  line-height: 2.2;
-  padding: 2px 1px;
-   cursor: url('/icons/cursor-active-word.svg') 4 4, pointer;
+  cursor:
+    url('/icons/cursor-active-word.svg') 4 4,
+    pointer;
+}
+
+html.jri-reader-active .jri-word {
+  padding: 0 1px;
 }
 
 html.jri-reader-active .jri-word.jri-word-current {
   background-color: var(--jri-current-word-background, #f9ba67);
   color: var(--jri-current-word-color, #171717);
-  border-radius: 3px;
-  text-decoration: underline;
-  text-decoration-color: var(--jri-current-word-color, #171717);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.15em;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0;
 }
 
 @media (forced-colors: active) {
   html.jri-reader-active .jri-word.jri-word-current {
     background-color: Highlight;
+    border-bottom-color: HighlightText;
     color: HighlightText;
   }
 }

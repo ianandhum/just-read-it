@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyReaderAppearance, removeReaderStyle, resolveReaderTheme, resolveReaderUiTheme, setCurrentWordContrast } from '../../../lib/web/reader/presentation';
+import {
+  applyReaderAppearance,
+  removeReaderStyle,
+  resolveReaderTheme,
+  resolveReaderUiTheme,
+  setCurrentWordContrast,
+} from '../../../lib/web/reader/presentation';
 import { DEFAULT_SETTINGS } from '../../../lib/types';
 
 function sentences(backgrounds: string[]): void {

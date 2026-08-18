@@ -302,10 +302,7 @@
   border-radius: 50%;
   /* CSS custom-property stops are valid at runtime. */
   /* eslint-disable css/no-invalid-properties */
-  background: conic-gradient(
-    var(--jri-ui-accent-border) 0% var(--jri-progress),
-    var(--jri-ui-border) var(--jri-progress) 100%
-  );
+  background: conic-gradient(var(--jri-ui-accent-border) 0% var(--jri-progress), var(--jri-ui-border) var(--jri-progress) 100%);
   /* eslint-enable css/no-invalid-properties */
   color: var(--jri-ui-text);
 }
@@ -314,11 +311,7 @@
 #jri-controls .jri-reading-progress-ring[data-indefinite='true'] {
   /* CSS custom-property stops are valid at runtime. */
   /* eslint-disable css/no-invalid-properties */
-  background: conic-gradient(
-    var(--jri-ui-accent-border) 0% 33%,
-    var(--jri-ui-border) 33% 66%,
-    var(--jri-ui-accent-border) 66% 100%
-  );
+  background: conic-gradient(var(--jri-ui-accent-border) 0% 33%, var(--jri-ui-border) 33% 66%, var(--jri-ui-accent-border) 66% 100%);
   /* eslint-enable css/no-invalid-properties */
   animation: jri-status-indefinite 1.2s linear infinite;
 }
@@ -932,7 +925,9 @@
   border-radius: 999px;
   background: var(--jri-ui-surface-solid);
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
 #jri-speed-popover .jri-rsvp-control input::before {
@@ -943,7 +938,9 @@
   border-radius: 50%;
   background: var(--jri-ui-muted);
   content: '';
-  transition: transform 120ms ease, background-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease;
 }
 
 #jri-speed-popover .jri-rsvp-control input:checked {
@@ -1093,7 +1090,7 @@
     top: 16px;
   }
 
-  #jri-minimized-controls:not([hidden]):has(~ #jri-rsvp-overlay:not([hidden]))~#jri-rsvp-overlay {
+  #jri-minimized-controls:not([hidden]):has(~ #jri-rsvp-overlay:not([hidden])) ~ #jri-rsvp-overlay {
     right: 12px;
     bottom: 12px;
   }
@@ -1421,7 +1418,6 @@
 }
 
 @media (forced-colors: active) {
-
   #jri-controls,
   #jri-speed-popover {
     background: Canvas;
@@ -1475,13 +1471,13 @@
     justify-content: center;
   }
 
-  #jri-controls>#jri-status-pane {
+  #jri-controls > #jri-status-pane {
     flex: 1 1 auto;
     min-width: 0;
     max-width: none;
   }
 
-  #jri-controls>#jri-status-pane {
+  #jri-controls > #jri-status-pane {
     position: static;
   }
 
@@ -1745,7 +1741,7 @@
     padding: 0 10px;
   }
 
-  #jri-controls>#jri-status-pane {
+  #jri-controls > #jri-status-pane {
     margin-bottom: 3px;
   }
 }

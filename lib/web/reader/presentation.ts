@@ -22,15 +22,26 @@ function luminance(red: number, green: number, blue: number): number {
 function parseColor(value: string): [number, number, number] | null {
   const hex = value.trim().match(/^#([\da-f]{3}|[\da-f]{6})$/i)?.[1];
   if (hex) {
-    const expanded = hex.length === 3 ? hex.split('').map((channel) => `${channel}${channel}`).join('') : hex;
-    return [Number.parseInt(expanded.slice(0, 2), 16), Number.parseInt(expanded.slice(2, 4), 16), Number.parseInt(expanded.slice(4, 6), 16)];
+    const expanded =
+      hex.length === 3
+        ? hex
+            .split('')
+            .map((channel) => `${channel}${channel}`)
+            .join('')
+        : hex;
+    return [
+      Number.parseInt(expanded.slice(0, 2), 16),
+      Number.parseInt(expanded.slice(2, 4), 16),
+      Number.parseInt(expanded.slice(4, 6), 16),
+    ];
   }
   const rgb = value.match(/^rgba?\(([^)]+)\)$/i)?.[1];
   if (!rgb) return null;
-  const channels = rgb.split(/[,\s/]+/).slice(0, 3).map(Number);
-  return channels.length === 3 && channels.every((channel) => Number.isFinite(channel))
-    ? [channels[0]!, channels[1]!, channels[2]!]
-    : null;
+  const channels = rgb
+    .split(/[,\s/]+/)
+    .slice(0, 3)
+    .map(Number);
+  return channels.length === 3 && channels.every((channel) => Number.isFinite(channel)) ? [channels[0]!, channels[1]!, channels[2]!] : null;
 }
 
 function isTransparent(value: string): boolean {
@@ -66,7 +77,6 @@ export function resolveReaderUiTheme(prefersDark = matchMedia('(prefers-color-sc
   return prefersDark ? 'dark' : 'light';
 }
 
-
 export function setCurrentWordContrast(
   doc: Document,
   settings: Pick<JriSettings, 'currentWordBackgroundColor' | 'darkCurrentWordBackgroundColor'>,
@@ -89,12 +99,27 @@ export function applyReaderFontScale(doc: Document, fontScale: number): void {
 
 export function applyReaderAppearance(
   doc: Document,
-  settings: Pick<JriSettings, 'dimOpacity' | 'currentHighlightColor' | 'readHighlightColor' | 'darkCurrentHighlightColor' | 'darkReadHighlightColor' | 'currentWordBackgroundColor' | 'darkCurrentWordBackgroundColor'>,
+  settings: Pick<
+    JriSettings,
+    | 'dimOpacity'
+    | 'currentHighlightColor'
+    | 'readHighlightColor'
+    | 'darkCurrentHighlightColor'
+    | 'darkReadHighlightColor'
+    | 'currentWordBackgroundColor'
+    | 'darkCurrentWordBackgroundColor'
+  >,
 ): void {
   const theme = resolveReaderTheme(doc);
   doc.documentElement.style.setProperty('--jri-dimmed-opacity', String(settings.dimOpacity));
   doc.documentElement.style.setProperty('--jri-current-sentence-mix', theme === 'dark' ? 'white' : 'black');
-  doc.documentElement.style.setProperty('--jri-current-highlight', theme === 'dark' ? settings.darkCurrentHighlightColor : settings.currentHighlightColor);
-  doc.documentElement.style.setProperty('--jri-read-highlight', theme === 'dark' ? settings.darkReadHighlightColor : settings.readHighlightColor);
+  doc.documentElement.style.setProperty(
+    '--jri-current-highlight',
+    theme === 'dark' ? settings.darkCurrentHighlightColor : settings.currentHighlightColor,
+  );
+  doc.documentElement.style.setProperty(
+    '--jri-read-highlight',
+    theme === 'dark' ? settings.darkReadHighlightColor : settings.readHighlightColor,
+  );
   setCurrentWordContrast(doc, settings, theme);
 }

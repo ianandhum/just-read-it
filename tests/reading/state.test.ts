@@ -518,5 +518,4 @@ describe('createReadingSession', () => {
     expect(session.nextUnreadAfter(4)).toBeNull();
     session.destroy();
   });
-
 });
