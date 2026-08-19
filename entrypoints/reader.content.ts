@@ -19,7 +19,7 @@ import { createTimeTracking, type TimeTracking } from '@/lib/web/reader/time_tra
 import { pageMetadata, type PageMetadata } from '@/lib/web/reader/page_metadata';
 import { createReaderWakeLock, type ReaderWakeLock } from '@/lib/web/reader/wake_lock';
 import { createReaderMediaSession, type ReaderMediaSession } from '@/lib/web/reader/media_session';
-import { createReaderSpeech } from '@/lib/web/reader/speech';
+import { createReaderSpeech, randomCompletionAnnouncement } from '@/lib/web/reader/speech';
 import { createReaderGuided } from '@/lib/web/reader/guided';
 import { createReaderControls, type ReaderControls, type ReaderControlsState, type ReaderStatus } from '@/lib/web/reader/controls';
 import { attachInteraction, type InteractionHandle } from '@/lib/web/reader/interaction';
@@ -238,17 +238,18 @@ export default defineContentScript({
       if (!session || !progress) return;
       const stats = session.getStats();
       const complete = stats.total > 0 && stats.readCount === stats.total;
-      statusText = readingStatus(stats);
+      if (!complete || !didCelebrate) statusText = readingStatus(stats);
       progress.update(stats.readCount, stats.total);
-      controls?.update(currentControlsState(stats));
       if (complete) {
         if (!didCelebrate) {
           didCelebrate = true;
-          showParty();
+          statusText = { minutes: randomCompletionAnnouncement(), text: '' };
+          if (settings.completionCelebrationEnabled) showParty();
         }
       } else {
         didCelebrate = false;
       }
+      controls?.update(currentControlsState(stats));
     }
 
     function scheduleSave(): void {
@@ -371,41 +372,30 @@ export default defineContentScript({
       const party = document.createElement('div');
       party.id = 'jri-party';
       party.setAttribute('aria-hidden', 'true');
-      const completedSentence = document.querySelector<HTMLElement>('.jri-sentence.jri-current');
-      const sentenceRect = completedSentence?.getBoundingClientRect();
-      const originX = sentenceRect ? sentenceRect.left + sentenceRect.width / 2 : window.innerWidth / 2;
-      const originY = sentenceRect ? sentenceRect.top + sentenceRect.height / 2 : window.innerHeight / 2;
-      party.style.setProperty('--jri-party-origin-x', `${Math.round(originX)}px`);
-      party.style.setProperty('--jri-party-origin-y', `${Math.round(originY)}px`);
-
-      const badge = document.createElement('span');
-      badge.className = 'jri-party-badge';
-      badge.textContent = 'Article complete';
-      party.appendChild(badge);
-
-      const colors = ['#f5c518', '#4caf50', '#2563eb', '#e85d75', '#ff9800', '#9c27b0'];
-      for (let i = 0; i < 40; i++) {
+      const colors = ['#ffcf4a', '#ff6b6b', '#5ec8ff', '#8ee36b', '#b58cff', '#ff9f5a'];
+      for (let i = 0; i < 88; i++) {
         const piece = document.createElement('span');
         piece.className = 'jri-party-piece';
-        piece.style.left = `${Math.round(originX)}px`;
-        piece.style.top = `${Math.round(originY)}px`;
-        const size = 5 + Math.random() * 7;
+        piece.style.left = `${Math.round(Math.random() * window.innerWidth)}px`;
+        piece.style.top = `${Math.round(-30 - Math.random() * 180)}px`;
+        const size = 6 + Math.random() * 9;
         piece.style.width = `${size}px`;
-        piece.style.height = `${size * (Math.random() > 0.5 ? 1 : 0.4)}px`;
-        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 70 + Math.random() * 140;
-        const vx = Math.cos(angle) * dist;
-        const vy = Math.sin(angle) * dist;
-        piece.style.setProperty('--jri-x', `${Math.round(vx)}px`);
-        piece.style.setProperty('--jri-y', `${Math.round(vy)}px`);
+        piece.style.height = `${Math.round(size * (0.45 + Math.random() * 0.9))}px`;
+        const drift = -150 + Math.random() * 300;
+        piece.style.setProperty('--jri-drift', `${Math.round(drift)}px`);
+        piece.style.setProperty('--jri-sway-one', `${Math.round(-75 + Math.random() * 150)}px`);
+        piece.style.setProperty('--jri-sway-two', `${Math.round(-75 + Math.random() * 150)}px`);
+        piece.style.setProperty('--jri-drift-mid', `${Math.round(drift * (0.45 + Math.random() * 0.2))}px`);
+        piece.style.setProperty('--jri-drop', `${Math.round(window.innerHeight + 200 + Math.random() * 240)}px`);
+        piece.style.setProperty('--jri-spin', `${Math.round(420 + Math.random() * 900)}deg`);
         piece.style.backgroundColor = colors[i % colors.length]!;
-        piece.style.animationDelay = `${Math.random() * 100}ms`;
+        piece.style.animationDelay = `${Math.round(Math.random() * 750)}ms`;
+        piece.style.animationDuration = `${Math.round(2200 + Math.random() * 1600)}ms`;
         party.appendChild(piece);
       }
       document.body?.appendChild(party);
       partyElement = party;
-      partyTimer = setTimeout(removeParty, 1800);
+      partyTimer = setTimeout(removeParty, 4700);
     }
 
     function markPreviousRead(): void {
@@ -814,11 +804,14 @@ export default defineContentScript({
           contentCandidate: contentCandidateId,
         });
         if (!wrap) {
-          await deactivateSession();
+          await deactivateSession(true);
           return 0;
         }
         if (wrap.total < 3) {
-          await teardownSession();
+          const candidates = cachedContentCandidates;
+          await teardownSession(true, undefined, true);
+          controls?.setContentCandidates(candidates);
+          controls?.setVisible(true);
           setStatus('No long-form readable content found.');
           notifyState(false);
           return 0;

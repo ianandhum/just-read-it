@@ -129,6 +129,7 @@ function isSettings(value: unknown): value is JriSettings {
   const settings = value as Partial<JriSettings> & { progressDashboardEnabled?: boolean };
   return (
     (typeof settings.readingHistoryEnabled === 'boolean' || typeof settings.progressDashboardEnabled === 'boolean') &&
+    (settings.completionCelebrationEnabled === undefined || typeof settings.completionCelebrationEnabled === 'boolean') &&
     typeof settings.guidedReading === 'boolean' &&
     typeof settings.rsvpEnabled === 'boolean' &&
     typeof settings.ttsEnabled === 'boolean' &&
@@ -259,6 +260,7 @@ export async function loadSettings(): Promise<JriSettings> {
     ...DEFAULT_SETTINGS,
     ...(stored ?? {}),
     readingHistoryEnabled,
+    completionCelebrationEnabled: stored?.completionCelebrationEnabled ?? DEFAULT_SETTINGS.completionCelebrationEnabled,
     guidedRate: Math.min(3, Math.max(0.5, stored?.guidedRate ?? DEFAULT_SETTINGS.guidedRate)),
     dimOpacity: Math.min(0.9, Math.max(0, stored?.dimOpacity ?? DEFAULT_SETTINGS.dimOpacity)),
     fontScale: Math.min(5, Math.max(0.5, stored?.fontScale ?? DEFAULT_SETTINGS.fontScale)),

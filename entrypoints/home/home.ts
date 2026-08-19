@@ -68,6 +68,7 @@ const guidedRate = document.getElementById('guided-rate') as HTMLInputElement;
 const guidedRateValue = document.getElementById('guided-rate-value') as HTMLOutputElement;
 const advanceDelay = document.getElementById('advance-delay') as HTMLInputElement;
 const advanceDelayValue = document.getElementById('advance-delay-value') as HTMLOutputElement;
+const completionCelebrationEnabled = document.getElementById('completion-celebration-enabled') as HTMLInputElement;
 const voice = document.getElementById('voice') as HTMLSelectElement;
 const rate = document.getElementById('rate') as HTMLInputElement;
 const rateValue = document.getElementById('rate-value') as HTMLOutputElement;
@@ -151,6 +152,7 @@ function renderSettingsForm(): void {
   guidedRateValue.textContent = `${settings.guidedRate.toFixed(1)}x`;
   advanceDelay.value = String(settings.guidedAdvanceDelay);
   advanceDelayValue.textContent = formatSeconds(settings.guidedAdvanceDelay);
+  completionCelebrationEnabled.checked = settings.completionCelebrationEnabled;
   rate.value = String(settings.rate);
   rateValue.textContent = `${settings.rate.toFixed(1)}x`;
   populateVoices();
@@ -786,6 +788,7 @@ advanceDelay.addEventListener('input', () => {
   advanceDelayValue.textContent = formatSeconds(value);
   queueSettingsSave({ guidedAdvanceDelay: value });
 });
+completionCelebrationEnabled.addEventListener('change', () => queueSettingsSave({ completionCelebrationEnabled: completionCelebrationEnabled.checked }));
 rate.addEventListener('input', () => {
   const value = Number(rate.value);
   rateValue.textContent = `${value.toFixed(1)}x`;
@@ -809,6 +812,7 @@ resetSettingsElement.addEventListener('click', async () => {
     darkCurrentWordBackgroundColor: DEFAULT_SETTINGS.darkCurrentWordBackgroundColor,
     guidedRate: DEFAULT_SETTINGS.guidedRate,
     guidedAdvanceDelay: DEFAULT_SETTINGS.guidedAdvanceDelay,
+    completionCelebrationEnabled: DEFAULT_SETTINGS.completionCelebrationEnabled,
     rate: DEFAULT_SETTINGS.rate,
     voiceURI: DEFAULT_SETTINGS.voiceURI,
   });

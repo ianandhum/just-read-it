@@ -4,7 +4,7 @@ import { createMediaSessionQuirk } from './media_session_quirk';
 
 type SpeechBackend = 'extension' | 'web' | 'none';
 
-const COMPLETION_ANNOUNCEMENTS = [
+export const COMPLETION_ANNOUNCEMENTS = [
   'You finished the article. Nice work.',
   "That's the article. Nicely done.",
   'Article complete. Well read.',
@@ -14,6 +14,11 @@ const COMPLETION_ANNOUNCEMENTS = [
   'Article complete. The next one can wait.',
   "You've finished this one. Well done.",
 ] as const;
+
+export function randomCompletionAnnouncement(): string {
+  const announcementIndex = Math.floor(Math.random() * COMPLETION_ANNOUNCEMENTS.length);
+  return COMPLETION_ANNOUNCEMENTS[announcementIndex]!;
+}
 
 export interface ReaderSpeechContext {
   getSession(): ReadingSession | null;
@@ -135,9 +140,7 @@ export function createReaderSpeech(context: ReaderSpeechContext): ReaderSpeech {
 
   function announceCompletion(): void {
     const settings = context.getSettings();
-    const announcementCount = COMPLETION_ANNOUNCEMENTS.length;
-    const announcementIndex = Math.floor(Math.random() * announcementCount);
-    const text = COMPLETION_ANNOUNCEMENTS[announcementIndex]!;
+    const text = randomCompletionAnnouncement();
     if (speechBackend === 'extension') {
       void browser.runtime
         .sendMessage({

@@ -36,6 +36,7 @@ export interface DailyReadingTime {
 
 export interface JriSettings {
   readingHistoryEnabled: boolean;
+  completionCelebrationEnabled: boolean;
   guidedReading: boolean;
   rsvpEnabled: boolean;
   ttsEnabled: boolean;
@@ -57,6 +58,7 @@ export interface JriSettings {
 
 export const DEFAULT_SETTINGS: JriSettings = {
   readingHistoryEnabled: false,
+  completionCelebrationEnabled: true,
   guidedReading: false,
   rsvpEnabled: false,
   ttsEnabled: false,
@@ -68,12 +70,12 @@ export const DEFAULT_SETTINGS: JriSettings = {
   mouseIdleDelay: 300,
   dimOpacity: 0.42,
   fontScale: 1,
-  currentHighlightColor: '#ffc95e',
+  currentHighlightColor: '#f5c518',
   readHighlightColor: '#58c05b',
-  darkCurrentHighlightColor: '#ffc95e',
+  darkCurrentHighlightColor: '#f5c518',
   darkReadHighlightColor: '#86efac',
-  currentWordBackgroundColor: '#ffce85',
-  darkCurrentWordBackgroundColor: '#ffdca7',
+  currentWordBackgroundColor: '#fdc57b',
+  darkCurrentWordBackgroundColor: '#fde68a',
 };
 
 export interface TabState {

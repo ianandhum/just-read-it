@@ -94,6 +94,13 @@ describe('summarizeReadingProgress', () => {
 });
 
 describe('backup validation', () => {
+  it('defaults completion celebrations to enabled for existing settings', async () => {
+    const get = browser.storage.sync.get as ReturnType<typeof vi.fn>;
+    get.mockResolvedValueOnce({ 'jri:settings': { ...DEFAULT_SETTINGS, completionCelebrationEnabled: undefined } });
+
+    expect((await loadSettings()).completionCelebrationEnabled).toBe(true);
+  });
+
   it('rejects backups with invalid page state or settings', async () => {
     await expect(importData({ version: 1, pageStates: [{ url: 'https://example.com' }], settings: DEFAULT_SETTINGS })).rejects.toThrow(
       'invalid reading progress',
