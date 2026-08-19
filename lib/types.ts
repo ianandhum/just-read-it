@@ -56,6 +56,10 @@ export interface JriSettings {
   darkCurrentWordBackgroundColor: string;
 }
 
+export interface JriPerSiteSettings {
+  fontScale?: number;
+}
+
 export const DEFAULT_SETTINGS: JriSettings = {
   readingHistoryEnabled: false,
   completionCelebrationEnabled: true,
@@ -75,7 +79,7 @@ export const DEFAULT_SETTINGS: JriSettings = {
   darkCurrentHighlightColor: '#f5c518',
   darkReadHighlightColor: '#86efac',
   currentWordBackgroundColor: '#fdc57b',
-  darkCurrentWordBackgroundColor: '#fde68a',
+  darkCurrentWordBackgroundColor: '#ffd8b0',
 };
 
 export interface TabState {

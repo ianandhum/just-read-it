@@ -4,9 +4,10 @@ import {
   importData,
   listenTimeByDay,
   loadFontScale,
+  loadPerSiteSettings,
   loadSettings,
   readingTimeByDay,
-  saveFontScale,
+  savePerSiteSettings,
   summarizeReadingProgress,
 } from '../lib/storage';
 import { DEFAULT_SETTINGS, type PageState } from '../lib/types';
@@ -118,15 +119,16 @@ describe('backup validation', () => {
 describe('per-domain font scale', () => {
   it('loads and saves a clamped font scale by hostname', async () => {
     const get = browser.storage.sync.get as unknown as { mockResolvedValueOnce(value: Record<string, unknown>): void };
-    get.mockResolvedValueOnce({ 'jri:font-scale:example.com': 2.25 });
+    get.mockResolvedValueOnce({ 'jri:per-site-settings:example.com': { fontScale: 2.25 } });
     expect(await loadFontScale('https://example.com/article')).toBe(2.25);
 
-    await saveFontScale('https://example.com/other', 8);
-    expect(browser.storage.sync.set).toHaveBeenCalledWith({ 'jri:font-scale:example.com': 5 });
+    await savePerSiteSettings('https://example.com/other', { fontScale: 8 });
+    expect(browser.storage.sync.set).toHaveBeenCalledWith({ 'jri:per-site-settings:example.com': { fontScale: 5 } });
   });
 
   it('returns null for an invalid saved scale', async () => {
     const get = browser.storage.sync.get as unknown as { mockResolvedValueOnce(value: Record<string, unknown>): void };
+    get.mockResolvedValueOnce({ 'jri:per-site-settings:example.com': { fontScale: 'large' } });
     get.mockResolvedValueOnce({ 'jri:font-scale:example.com': 'large' });
     expect(await loadFontScale('https://example.com/article')).toBeNull();
   });
@@ -135,5 +137,17 @@ describe('per-domain font scale', () => {
     const get = browser.storage.sync.get as unknown as { mockResolvedValueOnce(value: Record<string, unknown>): void };
     get.mockResolvedValueOnce({ 'jri:settings': { ...DEFAULT_SETTINGS, fontScale: 1.8 } });
     expect((await loadSettings()).fontScale).toBe(1.8);
+  });
+
+  it('loads the per-site settings object and falls back when it is absent', async () => {
+    const get = browser.storage.sync.get as unknown as { mockResolvedValueOnce(value: Record<string, unknown>): void };
+    get.mockResolvedValueOnce({ 'jri:per-site-settings:example.com': { fontScale: 2.25 } });
+    expect(await loadPerSiteSettings('https://example.com/article')).toEqual({ fontScale: 2.25 });
+
+    get.mockResolvedValueOnce({});
+    get.mockResolvedValueOnce({});
+    get.mockResolvedValueOnce({ 'jri:settings': { ...DEFAULT_SETTINGS, fontScale: 1.8 } });
+    const siteSettings = await loadPerSiteSettings('https://example.com/article');
+    expect(siteSettings?.fontScale ?? (await loadSettings()).fontScale).toBe(1.8);
   });
 });

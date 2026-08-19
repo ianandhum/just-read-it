@@ -58,7 +58,6 @@ html.jri-reader-active .jri-sentence.jri-dimmed.jri-read {
 
 html.jri-reader-active .jri-sentence.jri-dimmed.jri-current {
   opacity: 1;
-  /* eslint-disable-next-line css/no-important */
   transition: opacity 0s !important;
 }
 
@@ -109,7 +108,7 @@ html.jri-reader-active .jri-word.jri-word-current {
   text-decoration: underline;
   text-underline-offset: 0.15em;
   text-decoration-thickness: 2px;
-  text-decoration-color: var(--jri-current-word-color); 
+  text-decoration-color: var(--jri-current-word-color);
 }
 
 @media (forced-colors: active) {
@@ -156,7 +155,8 @@ html.jri-reader-active .jri-word.jri-word-current {
 
   58% {
     opacity: 0.85;
-    transform: translate(calc(var(--jri-drift-mid) + var(--jri-sway-two)), calc(var(--jri-drop) * 0.58)) rotate(calc(var(--jri-spin) * 0.56));
+    transform: translate(calc(var(--jri-drift-mid) + var(--jri-sway-two)), calc(var(--jri-drop) * 0.58))
+      rotate(calc(var(--jri-spin) * 0.56));
   }
 
   82% {

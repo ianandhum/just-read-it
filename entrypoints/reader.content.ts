@@ -10,8 +10,8 @@ import {
   saveSettings,
   loadContentCandidate,
   saveContentCandidate,
-  loadFontScale,
-  saveFontScale,
+  loadPerSiteSettings,
+  savePerSiteSettings,
 } from '@/lib/storage';
 import { createReaderLifecycle, type ReaderLifecycleContext } from '@/lib/web/reader/lifecycle';
 import { createReaderPersistence, type ReaderPersistence } from '@/lib/web/reader/persistence';
@@ -67,6 +67,7 @@ export default defineContentScript({
     let unwatchUrl: (() => void) | null = null;
     let settings: JriSettings = DEFAULT_SETTINGS;
     let fontScale = 1;
+    let hasPerSiteFontScale = false;
     let didCelebrate = false;
     let partyElement: HTMLElement | null = null;
     let partyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -170,11 +171,11 @@ export default defineContentScript({
     const updateWakeLock = (): Promise<void> => wakeLock.update();
     const releaseWakeLock = (): Promise<void> => wakeLock.release();
 
-    function applySettings(next: Partial<JriSettings> & { fontScale?: number }): void {
+    function applySettings(next: Partial<JriSettings> & { fontScale?: number }, forceFontScale = false): void {
       const { fontScale: nextFontScale, ...settingsPatch } = next;
       const voiceChanged = settingsPatch.voiceURI !== undefined && settingsPatch.voiceURI !== settings.voiceURI;
       const rateChanged = settingsPatch.rate !== undefined && settingsPatch.rate !== settings.rate;
-      if (nextFontScale !== undefined) {
+      if (nextFontScale !== undefined && (forceFontScale || !hasPerSiteFontScale) && nextFontScale !== fontScale) {
         fontScale = nextFontScale;
         applyReaderFontScale(document, fontScale);
       }
@@ -441,10 +442,11 @@ export default defineContentScript({
       if (importedProgress?.total !== wrap.total) importedProgress = null;
       setStatus('Loading reader settings', { indefinite: true });
       const loadedSettings = await loadSettings();
-      const savedFontScale = await loadFontScale(url);
+      const siteSettings = await loadPerSiteSettings(url);
       if (tornDown || !readerEnabled || !wrap || gen !== activationGen || location.href !== url) return false;
+      hasPerSiteFontScale = siteSettings?.fontScale !== undefined;
       settings = loadedSettings;
-      applySettings({ fontScale: savedFontScale ?? settings.fontScale });
+      applySettings({ fontScale: siteSettings?.fontScale ?? settings.fontScale }, true);
 
       try {
         setStatus('Checking Read Aloud', { indefinite: true });
@@ -749,8 +751,9 @@ export default defineContentScript({
               void saveSettings({ voiceURI });
             },
             setFontScale: (nextFontScale) => {
-              applySettings({ fontScale: nextFontScale });
-              if (sessionUrl) void saveFontScale(sessionUrl, nextFontScale);
+              applySettings({ fontScale: nextFontScale }, true);
+              hasPerSiteFontScale = true;
+              if (sessionUrl) void savePerSiteSettings(sessionUrl, { fontScale: nextFontScale });
             },
             setReaderUiTheme: (readerUiTheme) => {
               controls?.setTheme(readerUiTheme === 'auto' ? resolveReaderUiTheme() : readerUiTheme);

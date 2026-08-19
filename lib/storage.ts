@@ -1,9 +1,17 @@
-import { DEFAULT_SETTINGS, type JriSettings, type PageState, type DailyReadingTime, type ReadingProgressSummary } from './types';
+import {
+  DEFAULT_SETTINGS,
+  type JriPerSiteSettings,
+  type JriSettings,
+  type PageState,
+  type DailyReadingTime,
+  type ReadingProgressSummary,
+} from './types';
 import { rangesToReadIds } from './progress_share';
 
 const KEY_PREFIX = 'jri:';
 const SETTINGS_KEY = 'jri:settings';
 const CONTENT_CANDIDATE_PREFIX = 'jri:content-candidate:';
+const PER_SITE_SETTINGS_PREFIX = 'jri:per-site-settings:';
 const FONT_SCALE_PREFIX = 'jri:font-scale:';
 
 export interface DataExport {
@@ -73,6 +81,16 @@ function fontScaleKey(url: string): string {
   return `${FONT_SCALE_PREFIX}${host}`;
 }
 
+function perSiteSettingsKey(url: string): string {
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    host = 'unknown';
+  }
+  return `${PER_SITE_SETTINGS_PREFIX}${host}`;
+}
+
 export async function loadContentCandidate(url: string): Promise<string | null> {
   const key = contentCandidateKey(url);
   const value = await getSynced<string>(key);
@@ -83,13 +101,36 @@ export async function saveContentCandidate(url: string, candidateId: string): Pr
   await setSynced(contentCandidateKey(url), candidateId);
 }
 
+export async function loadPerSiteSettings(url: string): Promise<JriPerSiteSettings | null> {
+  const value = await getSynced<unknown>(perSiteSettingsKey(url));
+  if (value && typeof value === 'object') {
+    const settings = value as JriPerSiteSettings;
+    return typeof settings.fontScale === 'number' && Number.isFinite(settings.fontScale)
+      ? { fontScale: Math.min(5, Math.max(0.5, settings.fontScale)) }
+      : {};
+  }
+
+  // Read the original scalar format so existing site preferences survive the
+  // move to a per-site settings object.
+  const legacyFontScale = await getSynced<unknown>(fontScaleKey(url));
+  return typeof legacyFontScale === 'number' && Number.isFinite(legacyFontScale)
+    ? { fontScale: Math.min(5, Math.max(0.5, legacyFontScale)) }
+    : null;
+}
+
+export async function savePerSiteSettings(url: string, patch: JriPerSiteSettings): Promise<void> {
+  const current = (await loadPerSiteSettings(url)) ?? {};
+  const next = { ...current, ...patch };
+  if (next.fontScale !== undefined) next.fontScale = Math.min(5, Math.max(0.5, next.fontScale));
+  await setSynced(perSiteSettingsKey(url), next);
+}
+
 export async function loadFontScale(url: string): Promise<number | null> {
-  const value = await getSynced<unknown>(fontScaleKey(url));
-  return typeof value === 'number' && Number.isFinite(value) ? Math.min(5, Math.max(0.5, value)) : null;
+  return (await loadPerSiteSettings(url))?.fontScale ?? null;
 }
 
 export async function saveFontScale(url: string, fontScale: number): Promise<void> {
-  await setSynced(fontScaleKey(url), Math.min(5, Math.max(0.5, fontScale)));
+  await savePerSiteSettings(url, { fontScale });
 }
 
 export async function loadPageState(url: string): Promise<PageState | null> {

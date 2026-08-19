@@ -788,7 +788,9 @@ advanceDelay.addEventListener('input', () => {
   advanceDelayValue.textContent = formatSeconds(value);
   queueSettingsSave({ guidedAdvanceDelay: value });
 });
-completionCelebrationEnabled.addEventListener('change', () => queueSettingsSave({ completionCelebrationEnabled: completionCelebrationEnabled.checked }));
+completionCelebrationEnabled.addEventListener('change', () =>
+  queueSettingsSave({ completionCelebrationEnabled: completionCelebrationEnabled.checked }),
+);
 rate.addEventListener('input', () => {
   const value = Number(rate.value);
   rateValue.textContent = `${value.toFixed(1)}x`;
