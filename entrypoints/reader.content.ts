@@ -1,4 +1,5 @@
 import type { ContentCandidateInfo, RuntimeMessage, JriSettings } from '@/lib/types';
+import confetti, { type Options as ConfettiOptions } from 'canvas-confetti';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 import { canAnnotateDocument, getContentCandidates, wrapSentencesAsync, type WrapResult } from '@/lib/sentence';
 import { createReadingSession, type ReadingSession, type ReadingStats } from '@/lib/reading';
@@ -31,6 +32,7 @@ import { rangesToReadIds } from '@/lib/progress_share';
 import accentCss from '@/styles/accent.css?raw';
 import readerCss from '@/assets/reader-presentation.css?raw';
 import '@/assets/reader-page.css';
+import { scale } from 'happy-dom/lib/PropertySymbol';
 
 declare global {
   interface Window {
@@ -69,7 +71,6 @@ export default defineContentScript({
     let fontScale = 1;
     let hasPerSiteFontScale = false;
     let didCelebrate = false;
-    let partyElement: HTMLElement | null = null;
     let partyTimer: ReturnType<typeof setTimeout> | null = null;
     let lightsOutEnabled = false;
     let normalLightsOutEnabled = false;
@@ -97,11 +98,11 @@ export default defineContentScript({
         pageState: () =>
           session && sessionUrl
             ? session.toPageState(sessionUrl, sessionTitle, timeTracking.currentMs(), timeTracking.currentDailyMs(), {
-                ...sessionMetadata,
-                starred,
-                listenTimeSpentMs: timeTracking.currentListenMs(),
-                dailyListenTimeSpentMs: timeTracking.currentDailyListenMs(),
-              })
+              ...sessionMetadata,
+              starred,
+              listenTimeSpentMs: timeTracking.currentListenMs(),
+              dailyListenTimeSpentMs: timeTracking.currentDailyListenMs(),
+            })
             : null,
       },
       SAVE_DEBOUNCE_MS,
@@ -165,7 +166,7 @@ export default defineContentScript({
           enabled,
           token: sessionToken,
         } satisfies RuntimeMessage)
-        .catch(() => {});
+        .catch(() => { });
     }
 
     const updateWakeLock = (): Promise<void> => wakeLock.update();
@@ -364,39 +365,57 @@ export default defineContentScript({
         clearTimeout(partyTimer);
         partyTimer = null;
       }
-      partyElement?.remove();
-      partyElement = null;
+      confetti.reset();
     }
 
     function showParty(): void {
       removeParty();
-      const party = document.createElement('div');
-      party.id = 'jri-party';
-      party.setAttribute('aria-hidden', 'true');
-      const colors = ['#ffcf4a', '#ff6b6b', '#5ec8ff', '#8ee36b', '#b58cff', '#ff9f5a'];
-      for (let i = 0; i < 88; i++) {
-        const piece = document.createElement('span');
-        piece.className = 'jri-party-piece';
-        piece.style.left = `${Math.round(Math.random() * window.innerWidth)}px`;
-        piece.style.top = `${Math.round(-30 - Math.random() * 180)}px`;
-        const size = 6 + Math.random() * 9;
-        piece.style.width = `${size}px`;
-        piece.style.height = `${Math.round(size * (0.45 + Math.random() * 0.9))}px`;
-        const drift = -150 + Math.random() * 300;
-        piece.style.setProperty('--jri-drift', `${Math.round(drift)}px`);
-        piece.style.setProperty('--jri-sway-one', `${Math.round(-75 + Math.random() * 150)}px`);
-        piece.style.setProperty('--jri-sway-two', `${Math.round(-75 + Math.random() * 150)}px`);
-        piece.style.setProperty('--jri-drift-mid', `${Math.round(drift * (0.45 + Math.random() * 0.2))}px`);
-        piece.style.setProperty('--jri-drop', `${Math.round(window.innerHeight + 200 + Math.random() * 240)}px`);
-        piece.style.setProperty('--jri-spin', `${Math.round(420 + Math.random() * 900)}deg`);
-        piece.style.backgroundColor = colors[i % colors.length]!;
-        piece.style.animationDelay = `${Math.round(Math.random() * 750)}ms`;
-        piece.style.animationDuration = `${Math.round(2200 + Math.random() * 1600)}ms`;
-        party.appendChild(piece);
+      const colors = ['#ffc72f', '#ff4e4e', '#37bcff', '#78f945', '#8b4dff', '#ff8127'];
+      const statusRect = document.querySelector<HTMLElement>('.jri-reading-status')?.getBoundingClientRect();
+      const origin = statusRect
+        ? {
+          x: (statusRect.left + statusRect.width / 2) / window.innerWidth,
+          y: (statusRect.top + statusRect.height / 2) / window.innerHeight,
+        }
+        : { x: 0.5, y: 0.9 };
+
+      var count = 300;
+      var defaults: confetti.Options = {
+        colors,
+        origin,
+        scalar: 1.3 
+      };
+
+      function fire(particleRatio: number, opts:confetti.Options) {
+        confetti({
+          ...defaults,
+          ...opts,
+          particleCount: Math.floor(count * particleRatio)
+        });
       }
-      document.body?.appendChild(party);
-      partyElement = party;
-      partyTimer = setTimeout(removeParty, 4700);
+
+      fire(0.25, {
+        spread: 26,
+        startVelocity: 55,
+      });
+      fire(0.2, {
+        spread: 60,
+      });
+      fire(0.35, {
+        spread: 100,
+        decay: 0.91,
+        scalar: 0.8
+      });
+      fire(0.1, {
+        spread: 120,
+        startVelocity: 25,
+        decay: 0.92,
+        scalar: 1.2
+      });
+      fire(0.1, {
+        spread: 120,
+        startVelocity: 45,
+      });
     }
 
     function markPreviousRead(): void {
@@ -541,7 +560,7 @@ export default defineContentScript({
         isGuidedReading: () => settings.guidedReading,
         onGuidedArrow: () => guided.manualPause(),
         onSentenceHover: (hovered) => {
-          void browser.runtime.sendMessage({ type: 'CS_SENTENCE_HOVER', hovered } satisfies RuntimeMessage).catch(() => {});
+          void browser.runtime.sendMessage({ type: 'CS_SENTENCE_HOVER', hovered } satisfies RuntimeMessage).catch(() => { });
         },
       });
 
@@ -688,7 +707,7 @@ export default defineContentScript({
                 .sendMessage({
                   type: 'CS_OPEN_HOME',
                 } satisfies RuntimeMessage)
-                .catch(() => {});
+                .catch(() => { });
             },
             openProgressShare: () => {
               if (!session) return;
@@ -794,7 +813,7 @@ export default defineContentScript({
             type: 'CS_CONTENT_CANDIDATES',
             candidates: cachedContentCandidates,
           } satisfies RuntimeMessage)
-          .catch(() => {});
+          .catch(() => { });
         setStatus('Finding sentences', { indefinite: true });
         wrap = await wrapSentencesAsync(document, {
           batchSize: 24,

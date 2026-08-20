@@ -25,6 +25,7 @@
   "devDependencies": {
     "@eslint/css": "^1.4.0",
     "@eslint/js": "^10.0.1",
+    "@types/canvas-confetti": "^1.9.0",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.9.0",
@@ -37,6 +38,7 @@
     "wxt": "^0.21.1"
   },
   "dependencies": {
-    "@zxing/browser": "^0.1.5"
+    "@zxing/browser": "^0.1.5",
+    "canvas-confetti": "^1.9.4"
   }
 }
