@@ -4,7 +4,7 @@
 import type { ReadingSession } from '../../reading/state';
 import { HOVER_CLASS } from './helpers';
 
-const HOVER_SETTLE_MS = 100;
+const HOVER_SETTLE_MS = 50;
 const MOUSE_CURRENT_CLASS = 'jri-mouse-current';
 
 export interface HoverSelectionContext {

@@ -691,7 +691,7 @@ function createProgressShareControls(doc: Document, actions: ControlActions): { 
   heading.textContent = 'Continue on another device';
   const description = doc.createElement('p');
   description.textContent =
-    'Scan or copy this link to continue at the same place. It includes this article URL and your reading progress; Just Read It is required to restore it.';
+    'Scan or copy this link to continue from the same place. Just Read It should be enabled on the other device to continue the reading.';
   const qr = doc.createElement('div');
   qr.className = 'jri-progress-share-qr';
   qr.setAttribute('role', 'img');

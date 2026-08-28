@@ -1,5 +1,5 @@
 import type { ContentCandidateInfo, RuntimeMessage, JriSettings } from '@/lib/types';
-import confetti, { type Options as ConfettiOptions } from 'canvas-confetti';
+import confetti from 'canvas-confetti';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 import { canAnnotateDocument, getContentCandidates, wrapSentencesAsync, type WrapResult } from '@/lib/sentence';
 import { createReadingSession, type ReadingSession, type ReadingStats } from '@/lib/reading';
@@ -32,7 +32,6 @@ import { rangesToReadIds } from '@/lib/progress_share';
 import accentCss from '@/styles/accent.css?raw';
 import readerCss from '@/assets/reader-presentation.css?raw';
 import '@/assets/reader-page.css';
-import { scale } from 'happy-dom/lib/PropertySymbol';
 
 declare global {
   interface Window {
