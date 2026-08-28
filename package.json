@@ -1,6 +1,6 @@
 {
   "name": "just-read-it",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A web reader that makes long articles easier and more enjoyable to read.”",
   "license": "Apache-2.0",
   "private": true,
