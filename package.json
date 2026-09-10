@@ -34,7 +34,7 @@
     "prettier": "^3.9.6",
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.66.0",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "wxt": "^0.21.1"
   },
   "dependencies": {
