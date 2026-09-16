@@ -51,10 +51,6 @@ html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-current .jri-word.
   font-weight: inherit;
 }
 
-html.jri-reader-active body.jri-lights-out-mode .jri-sentence.jri-current {
-  text-shadow: 0 1px 2px var(--jri-current-sentence-shadow, rgb(255 255 255 / 20%));
-}
-
 html.jri-reader-active .jri-sentence.jri-hover {
   background-color: rgba(255, 235, 59, 0.1);
 }

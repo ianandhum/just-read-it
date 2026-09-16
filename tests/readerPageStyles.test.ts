@@ -17,6 +17,7 @@ describe('reader page styles', () => {
     expect(styles).toMatch(/\.jri-sentence\s*\{[^}]*box-decoration-break:\s*clone;/s);
     expect(styles).toMatch(/\.jri-sentence\.jri-current\s*\{[^}]*text-decoration-line:\s*underline;/s);
     expect(styles).toMatch(/\.jri-sentence\.jri-current\s*\{[^}]*text-underline-offset:\s*0\.18em;/s);
+    expect(styles).not.toMatch(/body\.jri-lights-out-mode \.jri-sentence\.jri-current\s*\{[^}]*text-shadow:/s);
   });
 
   it('renders the completion celebration as crisp firework sparks', () => {
