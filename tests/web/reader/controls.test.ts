@@ -520,7 +520,7 @@ describe('RSVP controls', () => {
     const controls = createReaderControls(document, '', actions({ markAllRead, close }), controlState());
     const buttons = Array.from(controls.root.querySelectorAll<HTMLButtonElement>('.jri-button'));
     const markAll = buttons.find((button) => button.title === 'Mark document as read')!;
-    const exit = buttons.find((button) => button.title === 'Disable Just Read It')!;
+    const exit = buttons.find((button) => button.title === 'Disable Web Reader')!;
     const cancel = () => controls.root.querySelector<HTMLButtonElement>('.jri-confirm-cancel')!.click();
     const submit = () => controls.root.querySelector<HTMLButtonElement>('.jri-confirm-submit')!.click();
 
@@ -767,7 +767,7 @@ describe('progress sharing', () => {
     expect(popover.open).toBe(true);
     expect(popover.getAttribute('aria-label')).toBe('Continue reading on another device');
     expect(popover.querySelector('h2')?.textContent).toBe('Continue on another device');
-    expect(popover.querySelector('p')?.textContent).toContain('Just Read It should be enabled on the other device');
+    expect(popover.querySelector('p')?.textContent).toContain('Web Reader should be enabled on the other device');
     copy.click();
     expect(copyProgressUrl).toHaveBeenCalledWith('https://example.com/article#jri1.progress');
     expect(close).not.toHaveBeenCalled();

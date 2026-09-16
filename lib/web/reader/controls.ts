@@ -130,7 +130,7 @@ function createReaderUiHost(doc: Document, css: string, theme: 'light' | 'dark')
   doc.getElementById('jri-ui-host')?.remove();
   const host = doc.createElement('div');
   host.id = 'jri-ui-host';
-  host.setAttribute('aria-label', 'Just Read It extension interface');
+  host.setAttribute('aria-label', 'Web Reader interface');
   host.dataset.readerTheme = theme;
   host.style.setProperty('all', 'initial', 'important');
   host.style.setProperty('position', 'fixed', 'important');
@@ -169,7 +169,7 @@ function createToolbar(doc: Document): {
   bar.id = CONTROLS_ID;
   bar.dataset.browser = navigator.userAgent.includes('Firefox') ? 'firefox' : 'chromium';
   bar.setAttribute('role', 'toolbar');
-  bar.setAttribute('aria-label', 'Just Read It controls');
+  bar.setAttribute('aria-label', 'Web Reader controls');
   const titleRow = doc.createElement('div');
   titleRow.className = 'jri-title-row';
   const firstRow = doc.createElement('div');
@@ -230,7 +230,7 @@ function createMinimizedControls(
   const icon = doc.createElement('img');
   icon.className = 'jri-minimized-icon';
   icon.src = browser.runtime.getURL('/icons/just-read-it-32.png');
-  icon.alt = 'Just Read It';
+  icon.alt = 'Web Reader';
   icon.addEventListener('error', () => icon.replaceWith(iconSvg(ICONS.extension)), { once: true });
   const guided = addIconButton(doc, ICONS.play, 'Enable Guided Reading', actions.toggleGuided);
   guided.classList.add('jri-minimized-guided');
@@ -673,7 +673,7 @@ function createSettingsHeader(doc: Document): HTMLDivElement {
   icon.alt = '';
   icon.addEventListener('error', () => icon.replaceWith(iconSvg(ICONS.extension)), { once: true });
   const brand = doc.createElement('span');
-  brand.textContent = 'Just Read It';
+  brand.textContent = 'Web Reader';
   const title = doc.createElement('h2');
   title.textContent = 'Reader View';
   const heading = doc.createElement('div');
@@ -693,7 +693,7 @@ function createProgressShareControls(doc: Document, actions: ControlActions): { 
   heading.textContent = 'Continue on another device';
   const description = doc.createElement('p');
   description.textContent =
-    'Scan or copy this link to continue from the same place. Just Read It should be enabled on the other device to continue the reading.';
+    'Scan or copy this link to continue from the same place. Web Reader should be enabled on the other device to continue the reading.';
   const qr = doc.createElement('div');
   qr.className = 'jri-progress-share-qr';
   qr.setAttribute('role', 'img');
@@ -1141,13 +1141,13 @@ function createToolbarControls(
   readingModes.append(guided, lightsOut, settings.readAloud);
   const minimize = addIconButton(doc, ICONS.minimize2, 'Minimize reading controls');
   minimize.classList.add('jri-minimize-controls');
-  const close = addIconButton(doc, ICONS.power, 'Disable Just Read It', () => {
+  const close = addIconButton(doc, ICONS.power, 'Disable Web Reader', () => {
     confirm.ask('Exit reading mode? Your progress is saved.', actions.close);
   });
   close.classList.add('jri-exit-button');
   const brand = doc.createElement('span');
   brand.className = 'jri-brand';
-  brand.textContent = 'Just Read It - Extension';
+  brand.textContent = 'Web Reader';
   const secondaryActions = doc.createElement('div');
   secondaryActions.className = 'jri-secondary-actions';
   toolbar.firstRow.append(

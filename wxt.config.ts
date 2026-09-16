@@ -2,7 +2,7 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   manifest: {
-    name: 'Just Read It',
+    name: 'Web Reader',
     description: 'A web reader that makes long articles easier and more enjoyable to read.”',
     permissions: ['activeTab', 'storage', 'scripting', 'contextMenus', 'clipboardWrite'],
     optional_host_permissions: ['http://*/*', 'https://*/*'],
@@ -18,7 +18,7 @@ export default defineConfig({
           default: 'Alt+Shift+L',
           mac: 'Command+Shift+L',
         },
-        description: 'Enable Just Read It on the current page',
+        description: 'Enable Web Reader on the current page',
       },
     },
     icons: {

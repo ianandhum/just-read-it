@@ -467,7 +467,7 @@ function pageItem(state: PageState, variantClass = ''): HTMLLIElement {
       const page = new URL(state.url);
       const host = page.hostname;
       const continueInReader = window.confirm(
-        `Allow Just Read It to access ${host} so it can reopen this article in Reading Mode? You can open it normally instead.`,
+        `Allow Web Reader to access ${host} so it can reopen this article in Reading Mode? You can open it normally instead.`,
       );
       if (!continueInReader) {
         window.open(state.url, '_blank', 'noopener,noreferrer');

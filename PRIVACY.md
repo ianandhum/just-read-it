@@ -1,12 +1,12 @@
-# Privacy Policy for Just Read It
+# Privacy Policy for Web Reader
 
 Last updated: August 5, 2026
 
-Just Read It is a browser extension for focused reading on web pages. This policy explains the information the extension handles and how it is used.
+Web Reader is a browser extension for focused reading on web pages. This policy explains the information the extension handles and how it is used.
 
 ## Data Storage
 
-Just Read It stores the following information in browser extension storage:
+Web Reader stores the following information in browser extension storage:
 
 - The URLs and titles of pages where reading progress has been saved.
 - Reading progress, including the current sentence, completed sentences, and the time spent reading.
@@ -16,7 +16,7 @@ Reading progress, page URLs, titles, and reading time are stored locally in the 
 
 ## Data Sharing
 
-Just Read It does not collect, transmit, sell, share, or use your data for advertising, analytics, profiling, or any other purpose outside the extension's features. It does not contact external servers.
+Web Reader does not collect, transmit, sell, share, or use your data for advertising, analytics, profiling, or any other purpose outside the extension's features. It does not contact external servers.
 
 ## Site Access
 
