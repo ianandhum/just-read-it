@@ -6,13 +6,14 @@ import {
   type DailyReadingTime,
   type ReadingProgressSummary,
 } from './types';
-import { rangesToReadIds } from './progress_share';
+import { MAX_PROGRESS_SENTENCES, rangesToReadIds } from './progress_share';
 
 const KEY_PREFIX = 'jri:';
 const SETTINGS_KEY = 'jri:settings';
 const CONTENT_CANDIDATE_PREFIX = 'jri:content-candidate:';
 const PER_SITE_SETTINGS_PREFIX = 'jri:per-site-settings:';
 const FONT_SCALE_PREFIX = 'jri:font-scale:';
+const PENDING_SYNC_PREFIX = 'jri:pending-sync:';
 
 export interface DataExport {
   version: 1;
@@ -22,27 +23,27 @@ export interface DataExport {
 }
 
 async function getSynced<T>(key: string): Promise<T | undefined> {
+  const local = await browser.storage.local.get([key, `${PENDING_SYNC_PREFIX}${key}`]);
+  // A failed sync write leaves the local copy authoritative until a later
+  // successful write clears the marker, including across extension restarts.
+  if (local[`${PENDING_SYNC_PREFIX}${key}`] === true) return local[key] as T | undefined;
   try {
     const result = await browser.storage.sync.get(key);
     if (result[key] !== undefined) return result[key] as T;
   } catch {
     // Some browser profiles can disable sync storage. Local storage remains the fallback.
   }
-  const result = await browser.storage.local.get(key);
-  const value = result[key] as T | undefined;
-  if (value !== undefined) {
-    // Promote pre-sync data without making local storage a second source of truth.
-    void browser.storage.sync.set({ [key]: value }).catch(() => undefined);
-  }
-  return value;
+  return local[key] as T | undefined;
 }
 
 async function setSynced(key: string, value: unknown): Promise<void> {
   try {
     await browser.storage.sync.set({ [key]: value });
   } catch {
-    await browser.storage.local.set({ [key]: value });
+    await browser.storage.local.set({ [key]: value, [`${PENDING_SYNC_PREFIX}${key}`]: true });
+    return;
   }
+  await browser.storage.local.remove([key, `${PENDING_SYNC_PREFIX}${key}`]);
 }
 
 export function localDateKey(date = new Date()): string {
@@ -157,12 +158,51 @@ export async function clearPageState(url: string): Promise<void> {
 function isPageState(value: unknown): value is PageState {
   if (!value || typeof value !== 'object') return false;
   const state = value as Partial<PageState>;
-  return (
-    typeof state.url === 'string' &&
-    typeof state.total === 'number' &&
-    Array.isArray(state.readRanges) &&
-    typeof state.updatedAt === 'number'
-  );
+  if (
+    typeof state.url !== 'string' ||
+    typeof state.total !== 'number' ||
+    !Number.isSafeInteger(state.total) ||
+    state.total < 0 ||
+    state.total > MAX_PROGRESS_SENTENCES ||
+    !Array.isArray(state.readRanges) ||
+    !Number.isFinite(state.updatedAt) ||
+    state.updatedAt! < 0 ||
+    (state.currentId !== null && (!Number.isSafeInteger(state.currentId) || state.currentId! < 0 || state.currentId! >= state.total))
+  )
+    return false;
+  try {
+    if (!['http:', 'https:'].includes(new URL(state.url).protocol)) return false;
+  } catch {
+    return false;
+  }
+  let previousEnd = 0;
+  for (const range of state.readRanges) {
+    if (!Array.isArray(range) || range.length !== 2) return false;
+    const [start, length] = range;
+    if (
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(length) ||
+      start < previousEnd ||
+      length < 1 ||
+      start + length > state.total
+    ) {
+      return false;
+    }
+    previousEnd = start + length;
+  }
+  for (const key of ['title', 'faviconUrl', 'previewImageUrl'] as const) {
+    if (state[key] !== undefined && typeof state[key] !== 'string') return false;
+  }
+  for (const key of ['timeSpentMs', 'listenTimeSpentMs', 'estimatedUnreadMs'] as const) {
+    if (state[key] !== undefined && (!Number.isFinite(state[key]) || state[key]! < 0)) return false;
+  }
+  for (const key of ['dailyTimeSpentMs', 'dailyListenTimeSpentMs'] as const) {
+    const daily = state[key];
+    if (daily === undefined) continue;
+    if (!daily || typeof daily !== 'object' || Array.isArray(daily)) return false;
+    if (Object.entries(daily).some(([date, ms]) => !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(ms) || ms < 0)) return false;
+  }
+  return state.starred === undefined || typeof state.starred === 'boolean';
 }
 
 function isSettings(value: unknown): value is JriSettings {

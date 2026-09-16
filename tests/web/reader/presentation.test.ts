@@ -5,6 +5,7 @@ import {
   resolveReaderTheme,
   resolveReaderUiTheme,
   setCurrentWordContrast,
+  setCurrentSentenceContrast,
 } from '../../../lib/web/reader/presentation';
 import { DEFAULT_SETTINGS } from '../../../lib/types';
 
@@ -23,6 +24,8 @@ afterEach(() => {
   document.documentElement.style.removeProperty('--jri-current-word-background');
   document.documentElement.style.removeProperty('--jri-current-word-color');
   document.documentElement.style.removeProperty('--jri-current-sentence-mix');
+  document.documentElement.style.removeProperty('--jri-current-sentence-text');
+  document.documentElement.style.removeProperty('--jri-current-sentence-shadow');
   document.body.innerHTML = '';
 });
 
@@ -78,6 +81,25 @@ describe('resolveReaderTheme', () => {
 });
 
 describe('applyReaderAppearance', () => {
+  it('uses high-contrast text for the active sentence without changing the configured highlight', () => {
+    document.body.style.backgroundColor = 'rgb(0, 0, 0)';
+    applyReaderAppearance(document, DEFAULT_SETTINGS);
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-text')).toBe('#fff');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-shadow')).toBe('rgb(0 0 0 / 35%)');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-highlight')).toBe(DEFAULT_SETTINGS.darkCurrentHighlightColor);
+
+    document.body.style.backgroundColor = 'rgb(255, 255, 255)';
+    applyReaderAppearance(document, DEFAULT_SETTINGS);
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-text')).toBe('#111');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-shadow')).toBe('rgb(255 255 255 / 35%)');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-highlight')).toBe(DEFAULT_SETTINGS.currentHighlightColor);
+  });
+
+  it('sets active sentence text contrast independently from word colors', () => {
+    setCurrentSentenceContrast(document, 'dark');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-text')).toBe('#fff');
+  });
+
   it('mixes current sentence text toward the page theme', () => {
     document.body.style.backgroundColor = 'rgb(0, 0, 0)';
     applyReaderAppearance(document, DEFAULT_SETTINGS);
@@ -96,6 +118,8 @@ describe('removeReaderStyle', () => {
     document.documentElement.style.setProperty('--jri-current-word-background', '#fdc57b');
     document.documentElement.style.setProperty('--jri-current-word-color', '#171717');
     document.documentElement.style.setProperty('--jri-current-sentence-mix', 'white');
+    document.documentElement.style.setProperty('--jri-current-sentence-text', '#fff');
+    document.documentElement.style.setProperty('--jri-current-sentence-shadow', 'rgb(0 0 0 / 35%)');
 
     removeReaderStyle(document);
 
@@ -104,5 +128,7 @@ describe('removeReaderStyle', () => {
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-color')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-mix')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-text')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-shadow')).toBe('');
   });
 });

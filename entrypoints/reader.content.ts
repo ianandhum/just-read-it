@@ -378,8 +378,8 @@ export default defineContentScript({
         }
         : { x: 0.5, y: 0.9 };
 
-      var count = 300;
-      var defaults: confetti.Options = {
+      const count = 300;
+      const defaults: confetti.Options = {
         colors,
         origin,
         scalar: 1.3 
@@ -763,6 +763,9 @@ export default defineContentScript({
             setGuidedRate: (guidedRate) => {
               applySettings({ guidedRate });
               void saveSettings({ guidedRate });
+            },
+            setTransientGuidedRate: (guidedRate) => {
+              applySettings({ guidedRate });
             },
             setVoice: (voiceURI) => {
               applySettings({ voiceURI });

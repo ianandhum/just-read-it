@@ -8,6 +8,9 @@ import {
   loadSettings,
   readingTimeByDay,
   savePerSiteSettings,
+  saveSettings,
+  saveContentCandidate,
+  loadContentCandidate,
   summarizeReadingProgress,
 } from '../lib/storage';
 import { DEFAULT_SETTINGS, type PageState } from '../lib/types';
@@ -95,6 +98,43 @@ describe('summarizeReadingProgress', () => {
 });
 
 describe('backup validation', () => {
+  it.each([
+    { readRanges: [null] },
+    { readRanges: [[0]] },
+    { readRanges: [[-1, 1]] },
+    { readRanges: [[0, 0]] },
+    { readRanges: [[0, 1.5]] },
+    {
+      readRanges: [
+        [0, 3],
+        [2, 1],
+      ],
+    },
+    { readRanges: [[3, 2]] },
+    { total: 1_000_000_000 },
+    { total: -1 },
+    { currentId: 4 },
+    { updatedAt: Infinity },
+    { title: 42 },
+    { timeSpentMs: -1 },
+    { dailyTimeSpentMs: { '2026-09-01': 'invalid' } },
+    { url: 'javascript:alert(1)' },
+  ])('rejects malformed progress without changing existing history: %j', async (patch) => {
+    await expect(importData({ version: 1, pageStates: [{ ...states[0], ...patch }], settings: DEFAULT_SETTINGS })).rejects.toThrow(
+      'invalid reading progress',
+    );
+    expect(browser.storage.local.remove).not.toHaveBeenCalled();
+    expect(browser.storage.local.set).not.toHaveBeenCalled();
+    expect(browser.storage.sync.set).not.toHaveBeenCalled();
+  });
+
+  it('accepts valid existing backups', async () => {
+    await expect(importData({ version: 1, pageStates: states, settings: DEFAULT_SETTINGS })).resolves.toBeUndefined();
+    expect(browser.storage.local.set).toHaveBeenCalledWith({
+      'jri:https://example.com/complete': states[0],
+      'jri:https://example.com/started': states[1],
+    });
+  });
   it('defaults completion celebrations to enabled for existing settings', async () => {
     const get = browser.storage.sync.get as ReturnType<typeof vi.fn>;
     get.mockResolvedValueOnce({ 'jri:settings': { ...DEFAULT_SETTINGS, completionCelebrationEnabled: undefined } });
@@ -113,6 +153,42 @@ describe('backup validation', () => {
     const backup = await exportData();
     expect(backup).toMatchObject({ version: 1, pageStates: [], settings: DEFAULT_SETTINGS });
     expect(backup.exportedAt).toEqual(expect.any(String));
+  });
+});
+
+describe('sync write fallback', () => {
+  it('keeps failed sync writes authoritative and clears fallback after recovery', async () => {
+    const local: Record<string, unknown> = {};
+    const sync: Record<string, unknown> = {};
+    const area = (data: Record<string, unknown>) => ({
+      get: vi.fn(async () => ({ ...data })),
+      set: vi.fn(async (items: Record<string, unknown>) => {
+        Object.assign(data, items);
+      }),
+      remove: vi.fn(async (keys: string | string[]) => {
+        for (const key of typeof keys === 'string' ? [keys] : keys) delete data[key];
+      }),
+    });
+    const localArea = area(local);
+    const syncArea = area(sync);
+    vi.stubGlobal('browser', { storage: { local: localArea, sync: syncArea } });
+    await saveSettings({ rate: 1 });
+    syncArea.set.mockRejectedValueOnce(new Error('write quota'));
+    await saveSettings({ rate: 2 });
+    expect((await loadSettings()).rate).toBe(2);
+    expect(sync['jri:settings']).toMatchObject({ rate: 1 });
+    expect(local['jri:pending-sync:jri:settings']).toBe(true);
+
+    await saveSettings({ fontScale: 1.5 });
+    expect(sync['jri:settings']).toMatchObject({ rate: 2, fontScale: 1.5 });
+    expect(local).toEqual({});
+    sync['jri:settings'] = { ...DEFAULT_SETTINGS, rate: 3 };
+    expect((await loadSettings()).rate).toBe(3);
+
+    await saveContentCandidate('https://example.com', 'tag:article');
+    syncArea.set.mockRejectedValueOnce(new Error('write quota'));
+    await saveContentCandidate('https://example.com', 'tag:main');
+    expect(await loadContentCandidate('https://example.com')).toBe('tag:main');
   });
 });
 

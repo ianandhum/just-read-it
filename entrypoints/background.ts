@@ -126,6 +126,7 @@ export default defineBackground(() => {
     clearContentCandidates(tabId);
     readerStyles.delete(tabId);
     pending.delete(tabId);
+    activationPending.delete(tabId);
     pendingEnable.delete(tabId);
     pendingAutoEnable.delete(tabId);
     tabLocks.delete(tabId);
@@ -143,6 +144,7 @@ export default defineBackground(() => {
       clearContentCandidates(tabId);
       readerStyles.delete(tabId);
       pending.delete(tabId);
+      activationPending.delete(tabId);
       pendingEnable.delete(tabId);
       stopSpeech(tabId);
       if (wasActive) {
@@ -235,7 +237,8 @@ export default defineBackground(() => {
   async function handleGetState(): Promise<{ tab: TabState }> {
     const tabId = await getActiveTabId();
     const contentCandidates = tabId == null ? [] : await loadContentCandidates(tabId);
-    const enabled = tabId != null && (activeTabs.has(tabId) || pending.has(tabId) || (await isTabActive(tabId)));
+    const enabled =
+      tabId != null && (activeTabs.has(tabId) || pending.has(tabId) || activationPending.has(tabId) || (await isTabActive(tabId)));
     let settings = DEFAULT_SETTINGS;
     try {
       settings = await loadSettings();
@@ -446,7 +449,7 @@ export default defineBackground(() => {
       await updateContextMenuState(tabId);
       return result;
     }
-    if (!activeTabs.has(tabId) && !pending.has(tabId)) return { ok: true, enabled: false };
+    if (!activeTabs.has(tabId) && !pending.has(tabId) && !activationPending.has(tabId)) return { ok: true, enabled: false };
     try {
       await Promise.race([
         browser.tabs.sendMessage(tabId, { type: 'BG_TEARDOWN' } satisfies RuntimeMessage),
@@ -457,6 +460,7 @@ export default defineBackground(() => {
     }
     activeTabs.delete(tabId);
     pending.delete(tabId);
+    activationPending.delete(tabId);
     pendingEnable.delete(tabId);
     sessionTokens.delete(tabId);
     clearContentCandidates(tabId);

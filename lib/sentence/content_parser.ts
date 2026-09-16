@@ -285,6 +285,27 @@ export function getContentCandidates(doc: Document): ContentCandidate[] {
   if (!result.some((candidate) => candidate.element === body)) {
     result.push({ id: candidateId(body), label: 'body', confidence: 0, element: body });
   }
+  // Assign collision ordinals in document order, independent of scoring and
+  // inserted sentence spans. Reserve legacy IDs before generating suffixes.
+  const elements = [...candidates.keys()];
+  if (!candidates.has(body)) elements.push(body);
+  elements.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+  const reserved = new Set(elements.map(candidateId));
+  const ordinals = new Map<string, number>();
+  const ids = new Map<Element, string>();
+  for (const element of elements) {
+    const base = candidateId(element);
+    let ordinal = (ordinals.get(base) ?? 0) + 1;
+    let id = base;
+    if (ordinal > 1) {
+      while (reserved.has(`${base}:${ordinal}`)) ordinal++;
+      id = `${base}:${ordinal}`;
+      reserved.add(id);
+    }
+    ordinals.set(base, ordinal);
+    ids.set(element, id);
+  }
+  for (const candidate of result) candidate.id = ids.get(candidate.element)!;
   return result;
 }
 

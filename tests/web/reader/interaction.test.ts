@@ -280,6 +280,30 @@ describe('createKeyboardInteraction', () => {
     readingSession.destroy();
   });
 
+  it('notifies navigation when ArrowRight completes the final guided word', () => {
+    const span = document.createElement('span');
+    span.className = 'jri-sentence';
+    span.setAttribute('data-jri-id', '0');
+    span.innerHTML = '<span class="jri-word">last</span>';
+    document.body.appendChild(span);
+    const readingSession = createReadingSession([span], null);
+    readingSession.setCurrent(0);
+    readingSession.setWordFocus(true);
+    cb.isGuidedReading = () => true;
+    const kb = createKeyboardInteraction(window, { session: readingSession, cb, onPointerReset });
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true, bubbles: true });
+
+    kb.onKeyDown(event);
+
+    expect(readingSession.isRead(0)).toBe(true);
+    expect(readingSession.getCurrentId()).toBeNull();
+    expect(event.defaultPrevented).toBe(true);
+    expect(cb.onNavigate).toHaveBeenCalledWith(true);
+    expect(onPointerReset).toHaveBeenCalledTimes(1);
+    kb.detach();
+    readingSession.destroy();
+  });
+
   it('ignores keys while focused in an editable field', () => {
     createKeyboardInteraction(window, { session, cb, onPointerReset });
     const input = document.createElement('input');

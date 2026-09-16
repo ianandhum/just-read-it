@@ -22,7 +22,8 @@ html.jri-reader-active .jri-sentence.jri-read {
 html.jri-reader-active .jri-sentence.jri-current {
   background-color: color-mix(in srgb, var(--jri-current-highlight) 18%, transparent);
   border-bottom-color: var(--jri-current-highlight);
-  color: color-mix(in srgb, currentColor 94%, var(--jri-current-sentence-mix, black) 12%);
+  color: var(--jri-current-sentence-text, currentColor);
+  text-shadow: 0 1px 1px rgb(255 255 255 / 16%);
   opacity: 1;
   transition:
     background-color 160ms ease,
@@ -41,6 +42,18 @@ html.jri-reader-active .jri-sentence.jri-current.jri-mouse-current {
 
 html.jri-reader-active .jri-sentence.jri-current.jri-read {
   background-color: color-mix(in srgb, var(--jri-read-highlight) 24%, white);
+}
+
+html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-current .jri-word:not(.jri-word-current) {
+  color: inherit;
+}
+
+html.jri-reader-active body.jri-guided-mode .jri-sentence.jri-current .jri-word.jri-word-current {
+  font-weight: inherit;
+}
+
+html.jri-reader-active body.jri-lights-out-mode .jri-sentence.jri-current {
+  text-shadow: 0 1px 2px var(--jri-current-sentence-shadow, rgb(255 255 255 / 20%));
 }
 
 html.jri-reader-active .jri-sentence.jri-hover {

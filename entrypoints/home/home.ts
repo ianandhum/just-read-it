@@ -54,6 +54,7 @@ const previewDimming = document.getElementById('preview-dimming') as HTMLInputEl
 const previewMode = document.getElementById('preview-mode') as HTMLSelectElement;
 previewMode.value = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 const resetSettingsElement = document.getElementById('reset-settings') as HTMLButtonElement;
+const saveSettingsElement = document.getElementById('save-settings') as HTMLButtonElement;
 const dimOpacity = document.getElementById('dim-opacity') as HTMLInputElement;
 const dimOpacityValue = document.getElementById('dim-opacity-value') as HTMLOutputElement;
 const fontScale = document.getElementById('font-scale') as HTMLInputElement;
@@ -82,7 +83,11 @@ let overviewRange: OverviewRange = 'week';
 let activeActionsElement: HTMLElement | null = null;
 let closeActiveActionsMenu: (() => void) | null = null;
 let settings: JriSettings;
-let saveSettingsTimer: number | undefined;
+let pendingSettings: Partial<JriSettings> = {};
+const settingsEditVersions = new Map<keyof JriSettings, number>();
+let settingsEditVersion = 0;
+let settingsWrite = Promise.resolve();
+let settingsRefreshVersion = 0;
 
 const TIME_SECONDS_DAY = 24 * 60 * 60 * 1000;
 
@@ -117,15 +122,63 @@ function renderSettingsPreview(): void {
 }
 
 function queueSettingsSave(patch: Partial<JriSettings>): void {
+  pendingSettings = { ...pendingSettings, ...patch };
+  for (const key of Object.keys(patch) as (keyof JriSettings)[]) settingsEditVersions.set(key, ++settingsEditVersion);
   settings = { ...settings, ...patch };
   renderSettingsPreview();
-  window.clearTimeout(saveSettingsTimer);
-  saveSettingsTimer = window.setTimeout(() => {
-    // Keep updates responsive without writing each range-slider position.
-    void saveSettings(settings).then((next) => {
-      settings = next;
-    });
-  }, 150);
+  saveSettingsElement.hidden = Object.keys(pendingSettings).length === 0;
+}
+
+function flushSettingsSave(): Promise<void> {
+  const patch = { ...pendingSettings };
+  const versions = new Map(settingsEditVersions);
+  const write = settingsWrite.then(async () => {
+    for (const [key, version] of versions) {
+      if (settingsEditVersions.get(key) === version) continue;
+      delete patch[key];
+      versions.delete(key);
+    }
+    if (versions.size === 0) return;
+    await saveSettings(patch);
+    // A completed write must not acknowledge input entered while it was in flight.
+    for (const [key, version] of versions) {
+      if (settingsEditVersions.get(key) !== version) continue;
+      delete pendingSettings[key];
+      settingsEditVersions.delete(key);
+    }
+    await refreshSettings();
+    saveSettingsElement.hidden = Object.keys(pendingSettings).length === 0;
+  });
+  settingsWrite = write.catch(() => {});
+  return write;
+}
+
+async function refreshSettings(): Promise<void> {
+  const version = ++settingsRefreshVersion;
+  const next = await loadSettings();
+  if (version !== settingsRefreshVersion) return;
+  settings = { ...next, ...pendingSettings };
+  renderSettingsForm();
+  renderTrackingUi();
+  await render();
+  saveSettingsElement.hidden = Object.keys(pendingSettings).length === 0;
+}
+
+async function saveChangesBeforeLeaving(): Promise<boolean> {
+  if (Object.keys(pendingSettings).length === 0) return true;
+  if (!window.confirm('Save preference changes before leaving?')) {
+    pendingSettings = {};
+    settingsEditVersions.clear();
+    void refreshSettings();
+    return true;
+  }
+  try {
+    await flushSettingsSave();
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+  return true;
 }
 
 function populateVoices(): void {
@@ -738,22 +791,26 @@ overviewRangeElement.addEventListener('change', () => {
 });
 
 for (const tab of tabElements) {
-  tab.addEventListener('click', () => {
+  tab.addEventListener('click', async () => {
     const panelId = tab.getAttribute('aria-controls');
     if (!panelId) return;
+    if (activeTabId() === 'preferences-panel' && panelId !== 'preferences-panel' && !(await saveChangesBeforeLeaving())) return;
     window.history.pushState(null, '', `#${panelId}`);
     selectTab(panelId);
   });
 }
 
-window.addEventListener('hashchange', () => selectTab(activeTabId()));
+window.addEventListener('hashchange', () => {
+  if (activeTabId() === 'preferences-panel') return;
+  void saveChangesBeforeLeaving();
+  selectTab(activeTabId());
+});
 
 for (const button of enableTrackingElements) {
   button.addEventListener('click', async () => {
     await withDisabled(button, async () => {
-      settings = await saveSettings({ readingHistoryEnabled: true });
-      renderTrackingUi();
-      await render();
+      queueSettingsSave({ readingHistoryEnabled: true });
+      await flushSettingsSave();
     });
   });
 }
@@ -802,8 +859,7 @@ previewMode.addEventListener('change', renderSettingsPreview);
 speechSynthesis?.addEventListener('voiceschanged', populateVoices);
 resetSettingsElement.addEventListener('click', async () => {
   if (!window.confirm('Reset the settings shown on this page?')) return;
-  window.clearTimeout(saveSettingsTimer);
-  settings = await saveSettings({
+  queueSettingsSave({
     dimOpacity: DEFAULT_SETTINGS.dimOpacity,
     fontScale: DEFAULT_SETTINGS.fontScale,
     currentHighlightColor: DEFAULT_SETTINGS.currentHighlightColor,
@@ -819,6 +875,12 @@ resetSettingsElement.addEventListener('click', async () => {
     voiceURI: DEFAULT_SETTINGS.voiceURI,
   });
   renderSettingsForm();
+});
+
+saveSettingsElement.addEventListener('click', async () => {
+  await withDisabled(saveSettingsElement, async () => {
+    await flushSettingsSave();
+  });
 });
 
 resetElement.addEventListener('click', async () => {
@@ -849,33 +911,36 @@ importDataElement.addEventListener('change', async () => {
   if (!file) return;
   if (!window.confirm('Importing will replace all saved reading progress and settings. Continue?')) return;
 
-  try {
+  pendingSettings = {};
+  settingsEditVersions.clear();
+  // Finish earlier writes before replacing settings; later input stays pending.
+  const write = settingsWrite.then(async () => {
     const data: unknown = JSON.parse(await file.text());
     await importData(data);
-    settings = await loadSettings();
-    renderTrackingUi();
+    await refreshSettings();
+  });
+  settingsWrite = write.catch(() => {});
+  try {
+    await write;
     setImportStatus('Your reading progress and settings have been imported.');
-    await render();
   } catch (error) {
     setImportStatus(error instanceof Error ? error.message : 'The backup could not be imported.', true);
   }
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !Object.keys(changes).some((key) => key.startsWith('jri:'))) return;
-  void loadSettings().then((next) => {
-    settings = next;
-    renderTrackingUi();
-    void render();
-  });
+  if ((area === 'sync' && 'jri:settings' in changes) || (area === 'local' && Object.keys(changes).some((key) => key.startsWith('jri:')))) {
+    void refreshSettings();
+  }
 });
 
 const initialTabId = activeTabId();
 if (new URLSearchParams(window.location.search).has('tab')) window.history.replaceState(null, '', window.location.pathname);
 selectTab(initialTabId);
-void loadSettings().then((next) => {
-  settings = next;
-  renderSettingsForm();
-  renderTrackingUi();
-  void render();
+void refreshSettings();
+
+window.addEventListener('beforeunload', (event) => {
+  if (Object.keys(pendingSettings).length === 0) return;
+  event.preventDefault();
+  event.returnValue = '';
 });

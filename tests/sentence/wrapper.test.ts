@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { wrapSentences, wrapSentencesAsync, SENTENCE_CLASS, SENTENCE_ATTR } from '../../lib/sentence/wrapper';
-import { getContentCandidates } from '../../lib/sentence/content_parser';
+import { getContentCandidates, scopeContent } from '../../lib/sentence/content_parser';
 
 function setupDoc(html: string): Document {
   const doc = document.implementation.createHTMLDocument('test');
@@ -329,6 +329,43 @@ describe('wrapSentences', () => {
     const result = await wrapSentencesAsync(doc, { contentCandidate: 'id:second' });
     expect(result?.total).toBe(1);
     expect(sentenceTexts(doc)).toEqual(['Second candidate.']);
+  });
+
+  it.each(['class="post"', ''])('distinguishes repeated candidates and keeps their IDs after wrapping (%s)', async (attributes) => {
+    const doc = setupDoc(
+      `<article ${attributes}><p>First candidate.</p></article>` +
+        `<article ${attributes}><p>Second candidate with substantially more text to rank ahead of the first.</p></article>`,
+    );
+    const [first, second] = Array.from(doc.querySelectorAll('article'));
+    const candidates = getContentCandidates(doc);
+    const firstId = candidates.find((candidate) => candidate.element === first)!.id;
+    const secondId = candidates.find((candidate) => candidate.element === second)!.id;
+    expect(firstId).toBe(attributes ? 'class:article.post' : 'tag:article');
+    expect(secondId).not.toBe(firstId);
+    expect(new Set(candidates.map((candidate) => candidate.id)).size).toBe(candidates.length);
+
+    const result = await wrapSentencesAsync(doc, { contentCandidate: secondId });
+    expect(sentenceTexts(doc)).toEqual(['Second candidate with substantially more text to rank ahead of the first.']);
+    expect(scopeContent(doc, firstId)).toBe(first);
+    expect(scopeContent(doc, secondId)).toBe(second);
+    result?.unwrap();
+    expect(scopeContent(doc, secondId)).toBe(second);
+  });
+
+  it('avoids collisions between generated suffixes and literal candidate IDs', () => {
+    const doc = setupDoc(
+      '<article id="post"><p>First.</p></article>' +
+        '<article id="post"><p>Second.</p></article>' +
+        '<article id="post:2"><p>Literal ID.</p></article>' +
+        '<article class="post"><p>Class first.</p></article>' +
+        '<article class="post"><p>Class second.</p></article>' +
+        '<article class="post:2"><p>Literal class.</p></article>',
+    );
+    const candidates = getContentCandidates(doc);
+    expect(new Set(candidates.map((candidate) => candidate.id)).size).toBe(candidates.length);
+    for (const candidate of candidates) expect(scopeContent(doc, candidate.id)).toBe(candidate.element);
+    expect(scopeContent(doc, 'id:post')).toBe(doc.querySelector('article'));
+    expect(scopeContent(doc, 'id:post:2')).toBe(doc.getElementById('post:2'));
   });
 
   it('scopes to .entry-content when no usable <article> exists', () => {

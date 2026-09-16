@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   decodeSharedProgress,
+  MAX_PROGRESS_SENTENCES,
   encodeSharedProgress,
   rangesToReadIds,
   readIdsToRanges,
@@ -10,6 +11,40 @@ import {
 } from '../lib/progress_share';
 
 describe('progress sharing', () => {
+  it.each(['jri1.', 'jri.v2.'])('rejects oversized JSON progress in %s links before expansion', (prefix) => {
+    const encoded = btoa(JSON.stringify([1_000_000_000, null, [[0, 1_000_000_000]]])).replace(/=+$/, '');
+    expect(decodeSharedProgress(`#${prefix}${encoded}`)).toBeNull();
+  });
+
+  it('rejects oversized binary progress before expansion', () => {
+    // Version 2, total 1 billion, no current sentence, one range covering all IDs.
+    const bytes = [2, 128, 148, 235, 220, 3, 0, 1, 0, 128, 148, 235, 220, 3];
+    const encoded = btoa(String.fromCharCode(...bytes))
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+      .replace(/=+$/, '');
+    expect(decodeSharedProgress(`#jri.v2.${encoded}`)).toBeNull();
+  });
+
+  it('round trips progress at the sentence limit and rejects unsupported exports', () => {
+    const progress = { total: MAX_PROGRESS_SENTENCES, readIds: [0, MAX_PROGRESS_SENTENCES - 1], currentId: null };
+    expect(decodeSharedProgress(`#${encodeSharedProgress(progress)}`)).toEqual(progress);
+    expect(shareProgressUrl('https://example.com', { ...progress, total: MAX_PROGRESS_SENTENCES + 1 })).toBeNull();
+  });
+
+  it('bounds cumulative expansion even for repeated ranges', () => {
+    expect(() =>
+      rangesToReadIds(
+        [
+          [0, MAX_PROGRESS_SENTENCES],
+          [0, 1],
+        ],
+        MAX_PROGRESS_SENTENCES,
+      ),
+    ).toThrow(RangeError);
+    expect(() => rangesToReadIds([[0, Infinity]], 10)).toThrow(TypeError);
+  });
+
   it('compacts continuous and duplicate read IDs into ranges', () => {
     expect(readIdsToRanges([7, 1, 2, 3, 3, 9], 10)).toEqual([
       [1, 3],
