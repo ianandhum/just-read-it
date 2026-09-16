@@ -114,8 +114,8 @@ html.jri-reader-active .jri-word {
 html.jri-reader-active .jri-word.jri-word-current {
   background-color: var(--jri-current-word-background);
   box-shadow:
-    0 0 0 0.09em var(--jri-current-word-background),
-    0 0.3em 0.4em var(--jri-current-word-shadow, #0000002e);
+    0 0 0.5px calc(0.1em + 2px) var(--jri-current-word-background),
+    0.2em 0.5em 0.6em var(--jri-current-word-shadow, #0000002e);
   color: var(--jri-current-word-color, #171717);
   border-radius: 2px;
   text-decoration: underline;
