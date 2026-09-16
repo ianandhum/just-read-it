@@ -17,6 +17,7 @@ function actions(overrides: Partial<ControlActions> = {}): ControlActions {
     close: () => {},
     setRate: () => {},
     setGuidedRate: () => {},
+    setTransientGuidedRate: () => {},
     setVoice: () => {},
     setFontScale: () => {},
     openProgressShare: () => {},
@@ -401,6 +402,7 @@ describe('RSVP controls', () => {
     expect(bar.hidden).toBe(true);
     expect(minimized.hidden).toBe(false);
     expect(overlay.hidden).toBe(false);
+    expect(overlay.style.bottom).toBe('78px');
     const guided = minimized.querySelector<HTMLButtonElement>('.jri-minimized-guided')!;
     expect(guided.title).toBe('Enable Guided Reading');
 
@@ -518,7 +520,7 @@ describe('RSVP controls', () => {
     const controls = createReaderControls(document, '', actions({ markAllRead, close }), controlState());
     const buttons = Array.from(controls.root.querySelectorAll<HTMLButtonElement>('.jri-button'));
     const markAll = buttons.find((button) => button.title === 'Mark document as read')!;
-    const exit = buttons.find((button) => button.title === 'Disable Just Read It')!;
+    const exit = buttons.find((button) => button.title === 'Disable Web Reader')!;
     const cancel = () => controls.root.querySelector<HTMLButtonElement>('.jri-confirm-cancel')!.click();
     const submit = () => controls.root.querySelector<HTMLButtonElement>('.jri-confirm-submit')!.click();
 
@@ -577,6 +579,96 @@ describe('RSVP controls', () => {
     expect(overlay.style.transform).toBe('none');
     close.dispatchEvent(new PointerEvent('pointerdown', { clientX: 220, clientY: 220, button: 0, pointerId: 2, bubbles: true }));
     expect(overlay.style.cursor).toBe('grab');
+    controls.destroy();
+  });
+
+  it('changes guided reading speed from the RSVP view', () => {
+    const setTransientGuidedRate = vi.fn();
+    const controls = createReaderControls(
+      document,
+      '',
+      actions({ setTransientGuidedRate }),
+      controlState({ rsvpEnabled: true, guidedRate: 1.5 }),
+    );
+    const speed = controls.root.querySelector<HTMLElement>('.jri-rsvp-speed')!;
+    const buttons = speed.querySelectorAll<HTMLButtonElement>('button');
+
+    expect(speed.querySelector('output')?.textContent).toBe('1.5x');
+    buttons[0]?.click();
+    buttons[1]?.click();
+
+    expect(setTransientGuidedRate).toHaveBeenNthCalledWith(1, 1.4);
+    expect(setTransientGuidedRate).toHaveBeenNthCalledWith(2, 1.6);
+    controls.destroy();
+  });
+
+  it('updates RSVP speed and disables controls at the supported limits', () => {
+    const setTransientGuidedRate = vi.fn();
+    const controls = createReaderControls(
+      document,
+      '',
+      actions({ setTransientGuidedRate }),
+      controlState({ rsvpEnabled: true, guidedRate: 0.5 }),
+    );
+    const speed = controls.root.querySelector<HTMLElement>('.jri-rsvp-speed')!;
+    const [decrease, increase] = Array.from(speed.querySelectorAll('button'));
+    expect(decrease!.disabled).toBe(true);
+    decrease!.click();
+    expect(setTransientGuidedRate).not.toHaveBeenCalled();
+    increase!.click();
+    expect(setTransientGuidedRate).toHaveBeenLastCalledWith(0.6);
+    controls.update(controlState({ rsvpEnabled: true, guidedRate: 3 }));
+    expect(speed.querySelector('output')!.textContent).toBe('3.0x');
+    expect(increase!.disabled).toBe(true);
+    expect(decrease!.disabled).toBe(false);
+    decrease!.click();
+    expect(setTransientGuidedRate).toHaveBeenLastCalledWith(2.9);
+    expect(controls.root.querySelector('#jri-rsvp-overlay')!.getAttribute('aria-modal')).toBe('false');
+    controls.destroy();
+  });
+
+  it('does not start dragging when pressing an RSVP speed control', () => {
+    const controls = createReaderControls(document, '', actions(), controlState({ rsvpEnabled: true }));
+    const overlay = controls.root.querySelector<HTMLElement>('#jri-rsvp-overlay')!;
+    const capture = vi.spyOn(overlay, 'setPointerCapture');
+    controls.root
+      .querySelector('.jri-rsvp-speed button')!
+      .dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 1, bubbles: true }));
+    expect(capture).not.toHaveBeenCalled();
+    controls.destroy();
+  });
+
+  it('fits long words into the measured space before the RSVP controls', async () => {
+    document.body.innerHTML = '<span class="jri-word jri-word-current">extraordinarily</span>';
+    const controls = createReaderControls(document, '', actions(), controlState({ rsvpEnabled: true }));
+    const overlay = controls.root.querySelector<HTMLElement>('#jri-rsvp-overlay')!;
+    const rect = (left: number, right: number) => ({ left, right, width: right - left, top: 0, bottom: 180, height: 180 }) as DOMRect;
+    vi.spyOn(overlay, 'getBoundingClientRect').mockReturnValue(rect(0, 400));
+    vi.spyOn(overlay.querySelector('.jri-rsvp-speed')!, 'getBoundingClientRect').mockReturnValue(rect(348, 392));
+    vi.spyOn(overlay.querySelector('.jri-rsvp-close')!, 'getBoundingClientRect').mockReturnValue(rect(348, 392));
+    for (const name of ['prefix', 'focus', 'suffix']) {
+      vi.spyOn(overlay.querySelector(`.jri-rsvp-${name}`)!, 'getBoundingClientRect').mockReturnValue(rect(24, 504));
+    }
+    await vi.advanceTimersByTimeAsync(32);
+    expect(overlay.querySelector<HTMLElement>('.jri-rsvp-word')!.style.getPropertyValue('--jri-rsvp-word-scale')).toBe('0.5');
+    controls.destroy();
+  });
+
+  it('clears desktop drag coordinates when switching to a mobile viewport', () => {
+    let mobile = false;
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) => ({ matches: mobile && query === '(max-width: 600px)' }) as MediaQueryList,
+    );
+    const controls = createReaderControls(document, '', actions(), controlState({ rsvpEnabled: true }));
+    const overlay = controls.root.querySelector<HTMLElement>('#jri-rsvp-overlay')!;
+    overlay.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 1 }));
+    overlay.dispatchEvent(new PointerEvent('pointermove', { clientX: 600, clientY: 200, pointerId: 1 }));
+    overlay.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }));
+    expect(overlay.style.left).not.toBe('');
+    mobile = true;
+    window.dispatchEvent(new Event('resize'));
+    expect(overlay.style.left).toBe('');
+    expect(overlay.style.transform).toBe('');
     controls.destroy();
   });
 
@@ -675,7 +767,7 @@ describe('progress sharing', () => {
     expect(popover.open).toBe(true);
     expect(popover.getAttribute('aria-label')).toBe('Continue reading on another device');
     expect(popover.querySelector('h2')?.textContent).toBe('Continue on another device');
-    expect(popover.querySelector('p')?.textContent).toContain('Just Read It is required to restore it.');
+    expect(popover.querySelector('p')?.textContent).toContain('Web Reader should be enabled on the other device');
     copy.click();
     expect(copyProgressUrl).toHaveBeenCalledWith('https://example.com/article#jri1.progress');
     expect(close).not.toHaveBeenCalled();

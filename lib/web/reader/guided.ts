@@ -40,19 +40,42 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
   let lastFrameAt = 0;
   let guidedPauseUntil = 0;
   let paused = false;
-  let pendingGuidedAdvanceFrom: number | null = null;
+  let pendingGuidedAdvance: { session: ReadingSession; fromId: number | null } | null = null;
 
   function scheduleGuidedAdvance(fromId: number | null): void {
-    if (advanceTimer) clearTimeout(advanceTimer);
-    pendingGuidedAdvanceFrom = fromId;
+    if (advanceTimer !== null) clearTimeout(advanceTimer);
+    advanceTimer = null;
+    const session = context.getSession();
+    pendingGuidedAdvance = session ? { session, fromId } : null;
+    schedulePendingAdvance();
+  }
+
+  function schedulePendingAdvance(): void {
+    const pending = pendingGuidedAdvance;
+    if (!pending) return;
+    if (
+      context.isTornDown() ||
+      context.getSession() !== pending.session ||
+      pending.session.getCurrentId() !== null ||
+      context.getSpeech().readingAloud
+    ) {
+      pendingGuidedAdvance = null;
+      startLoop();
+      return;
+    }
+    if (paused || !context.getSettings().guidedReading || advanceTimer !== null) return;
     advanceTimer = setTimeout(
       () => {
         advanceTimer = null;
         const session = context.getSession();
-        if (context.isTornDown() || !session) return;
-        if (!context.getSettings().guidedReading) return;
-        const next = session.nextUnreadAfter(fromId);
-        pendingGuidedAdvanceFrom = null;
+        if (pendingGuidedAdvance !== pending) return;
+        if (context.isTornDown() || session !== pending.session || session.getCurrentId() !== null || context.getSpeech().readingAloud) {
+          pendingGuidedAdvance = null;
+          return;
+        }
+        if (paused || !context.getSettings().guidedReading) return;
+        const next = session.nextUnreadAfter(pending.fromId);
+        pendingGuidedAdvance = null;
         if (next === null) {
           // Keep the prior sentence status during normal transitions, but
           // refresh at the end so the completed article state is rendered.
@@ -103,7 +126,8 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
   }
 
   function startLoop(): void {
-    if (paused || !context.getSettings().guidedReading || rafId !== null) return;
+    if (context.isTornDown() || paused || context.getSpeech().readingAloud || !context.getSettings().guidedReading || rafId !== null)
+      return;
     lastFrameAt = 0;
     rafId = requestAnimationFrame(loop);
   }
@@ -130,8 +154,8 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
     context.updateControls();
     void context.updateWakeLock();
     if (guidedReading) {
-      if (session?.getCurrentId() === null && pendingGuidedAdvanceFrom !== null) {
-        scheduleGuidedAdvance(pendingGuidedAdvanceFrom);
+      if (pendingGuidedAdvance !== null) {
+        schedulePendingAdvance();
       } else {
         startLoop();
       }
@@ -155,7 +179,7 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
       cancelAnimationFrame(rafId);
       rafId = null;
     }
-    if (advanceTimer) {
+    if (advanceTimer !== null) {
       clearTimeout(advanceTimer);
       advanceTimer = null;
     }
@@ -164,8 +188,8 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
   function resume(): void {
     paused = false;
     guidedPauseUntil = 0;
-    if (pendingGuidedAdvanceFrom !== null) {
-      scheduleGuidedAdvance(pendingGuidedAdvanceFrom);
+    if (pendingGuidedAdvance !== null) {
+      schedulePendingAdvance();
     } else {
       startLoop();
     }
@@ -173,7 +197,7 @@ export function createReaderGuided(context: ReaderGuidedContext): ReaderGuided {
 
   function teardown(): void {
     pause();
-    pendingGuidedAdvanceFrom = null;
+    pendingGuidedAdvance = null;
   }
 
   return { scheduleGuidedAdvance, startLoop, setGuided, pause, resume, manualPause, teardown };

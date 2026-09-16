@@ -44,15 +44,15 @@ function nativeSentenceRanges(text: string): SentenceRange[] | null {
     if (start < end) ranges.push({ start, end });
   }
   if (
-    ranges.some(({ start, end }) => {
+    ranges.some(({ start, end }, rangeIndex) => {
       const segment = text.slice(start, end);
       const last = segment.at(-1);
       let index = segment.length - 1;
       while (index >= 0 && CLOSERS.has(segment[index] ?? '')) index--;
       return (
-        !TERMINATORS.has(segment[index] ?? '') ||
+        (rangeIndex < ranges.length - 1 && !TERMINATORS.has(segment[index] ?? '')) ||
         /(?:\b\p{L}|\b(?:mr|mrs|ms|dr|prof|sr|jr|st|vs|etc|approx|no|fig|vol|pp|ca|eg|ie|us|uk))\.$/iu.test(segment) ||
-        (last !== undefined && !TERMINATORS.has(last) && !CLOSERS.has(last))
+        (rangeIndex < ranges.length - 1 && last !== undefined && !TERMINATORS.has(last) && !CLOSERS.has(last))
       );
     }) ||
     /\.\.\.\s+\p{L}/u.test(text)
@@ -168,7 +168,7 @@ export function splitSentences(text: string): SentenceRange[] {
       let terminalEnd = i + 1;
       while (CLOSERS.has(text[terminalEnd] ?? '')) terminalEnd++;
       const next = text[terminalEnd];
-      if (next !== undefined && !isWhitespace(next)) {
+      if (next !== undefined && !isWhitespace(next) && ch !== '。' && ch !== '！' && ch !== '？') {
         i++;
         continue;
       }

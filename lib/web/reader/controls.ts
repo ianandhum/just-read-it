@@ -62,6 +62,7 @@ export interface ControlActions {
   close(): void;
   setRate(rate: number): void;
   setGuidedRate(rate: number): void;
+  setTransientGuidedRate(rate: number): void;
   setVoice(voiceURI: string | null): void;
   setFontScale(fontScale: number): void;
   setReaderUiTheme?(theme: 'auto' | 'light' | 'dark'): void;
@@ -129,7 +130,7 @@ function createReaderUiHost(doc: Document, css: string, theme: 'light' | 'dark')
   doc.getElementById('jri-ui-host')?.remove();
   const host = doc.createElement('div');
   host.id = 'jri-ui-host';
-  host.setAttribute('aria-label', 'Just Read It extension interface');
+  host.setAttribute('aria-label', 'Web Reader interface');
   host.dataset.readerTheme = theme;
   host.style.setProperty('all', 'initial', 'important');
   host.style.setProperty('position', 'fixed', 'important');
@@ -168,7 +169,7 @@ function createToolbar(doc: Document): {
   bar.id = CONTROLS_ID;
   bar.dataset.browser = navigator.userAgent.includes('Firefox') ? 'firefox' : 'chromium';
   bar.setAttribute('role', 'toolbar');
-  bar.setAttribute('aria-label', 'Just Read It controls');
+  bar.setAttribute('aria-label', 'Web Reader controls');
   const titleRow = doc.createElement('div');
   titleRow.className = 'jri-title-row';
   const firstRow = doc.createElement('div');
@@ -229,7 +230,7 @@ function createMinimizedControls(
   const icon = doc.createElement('img');
   icon.className = 'jri-minimized-icon';
   icon.src = browser.runtime.getURL('/icons/just-read-it-32.png');
-  icon.alt = 'Just Read It';
+  icon.alt = 'Web Reader';
   icon.addEventListener('error', () => icon.replaceWith(iconSvg(ICONS.extension)), { once: true });
   const guided = addIconButton(doc, ICONS.play, 'Enable Guided Reading', actions.toggleGuided);
   guided.classList.add('jri-minimized-guided');
@@ -299,6 +300,7 @@ interface SettingsControls {
 interface RsvpControls {
   overlay: HTMLElement;
   setVisible(visible: boolean): void;
+  setGuidedRate(rate: number): void;
   syncPosition(): void;
   getViewport(): { top: number; bottom: number } | null;
   destroy(): void;
@@ -336,7 +338,7 @@ export function createReaderControls(
     readerUiTheme,
   );
   const progressShare = createProgressShareControls(doc, actions);
-  const rsvp = createRsvpControls(doc, toolbar.bar, minimized.element, actions);
+  const rsvp = createRsvpControls(doc, toolbar.bar, minimized.element, actions, initialState.guidedRate);
   const toolbarControls = createToolbarControls(
     doc,
     root,
@@ -671,7 +673,7 @@ function createSettingsHeader(doc: Document): HTMLDivElement {
   icon.alt = '';
   icon.addEventListener('error', () => icon.replaceWith(iconSvg(ICONS.extension)), { once: true });
   const brand = doc.createElement('span');
-  brand.textContent = 'Just Read It';
+  brand.textContent = 'Web Reader';
   const title = doc.createElement('h2');
   title.textContent = 'Reader View';
   const heading = doc.createElement('div');
@@ -691,7 +693,7 @@ function createProgressShareControls(doc: Document, actions: ControlActions): { 
   heading.textContent = 'Continue on another device';
   const description = doc.createElement('p');
   description.textContent =
-    'Scan or copy this link to continue from the same place. Just Read It should be enabled on the other device to continue the reading.';
+    'Scan or copy this link to continue from the same place. Web Reader should be enabled on the other device to continue the reading.';
   const qr = doc.createElement('div');
   qr.className = 'jri-progress-share-qr';
   qr.setAttribute('role', 'img');
@@ -849,12 +851,18 @@ function createRsvpControl(doc: Document, actions: ControlActions) {
   return { control, input };
 }
 
-function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLDivElement, actions: ControlActions): RsvpControls {
+function createRsvpControls(
+  doc: Document,
+  bar: HTMLDivElement,
+  minimized: HTMLDivElement,
+  actions: ControlActions,
+  guidedRate: number,
+): RsvpControls {
   const overlay = doc.createElement('section');
   overlay.id = 'jri-rsvp-overlay';
   overlay.hidden = true;
   overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-modal', 'false');
   overlay.setAttribute('aria-label', 'Rapid Serial Visual Presentation');
   const wordElement = doc.createElement('div');
   wordElement.className = 'jri-rsvp-word';
@@ -867,7 +875,24 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
   wordElement.append(prefix, focus, suffix);
   const close = addIconButton(doc, ICONS.x, 'Exit Rapid Serial Visual Presentation', () => actions.toggleRsvp(false));
   close.classList.add('jri-rsvp-close');
-  overlay.append(wordElement, close);
+  const speed = doc.createElement('div');
+  speed.className = 'jri-rsvp-speed';
+  speed.setAttribute('role', 'group');
+  speed.setAttribute('aria-label', 'Guided reading speed for this session');
+  const decreaseSpeed = addIconButton(doc, ICONS.minus, 'Decrease guided reading speed', () => {
+    actions.setTransientGuidedRate(Math.max(0.5, Math.round((guidedRate - 0.1) * 10) / 10));
+  });
+  const speedOutput = doc.createElement('output');
+  speedOutput.textContent = `${guidedRate.toFixed(1)}x`;
+  speedOutput.setAttribute('aria-label', 'Guided reading speed');
+  const increaseSpeed = addIconButton(doc, ICONS.plus, 'Increase guided reading speed', () => {
+    actions.setTransientGuidedRate(Math.min(3, Math.round((guidedRate + 0.1) * 10) / 10));
+  });
+  decreaseSpeed.disabled = guidedRate <= 0.5;
+  increaseSpeed.disabled = guidedRate >= 3;
+  speed.append(decreaseSpeed, speedOutput, increaseSpeed);
+  for (const control of [speed, close]) control.addEventListener('pointerdown', (event) => event.stopPropagation());
+  overlay.append(wordElement, speed, close);
   let frame: number | null = null;
   let fitFrame: number | null = null;
   let displayedWord: string | null = null;
@@ -902,7 +927,7 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
     if (bar.hidden && !minimized.hidden && !hasBeenDragged) {
       overlay.style.top = 'auto';
       overlay.style.right = '12px';
-      overlay.style.bottom = '12px';
+      overlay.style.bottom = '78px';
       return;
     }
     if (hasBeenDragged) return;
@@ -928,8 +953,9 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
     const wordLeft = Math.min(...wordRects.map((rect) => rect.left));
     const wordRight = Math.max(...wordRects.map((rect) => rect.right));
     const anchor = overlayRect.left + overlayRect.width * 0.42;
-    const availableLeft = anchor - (overlayRect.left + 24);
-    const availableRight = overlayRect.right - 82 - anchor;
+    const availableLeft = Math.max(0, anchor - (overlayRect.left + 24));
+    const controlsLeft = Math.min(speed.getBoundingClientRect().left, close.getBoundingClientRect().left);
+    const availableRight = Math.max(0, controlsLeft - 12 - anchor);
     const wordLeftExtent = anchor - wordLeft;
     const wordRightExtent = wordRight - anchor;
     const scale = Math.min(
@@ -949,14 +975,37 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
     prefix.textContent = characters.slice(0, focusIndex).join('');
     focus.textContent = characters[focusIndex] ?? '';
     suffix.textContent = characters.slice(focusIndex + 1).join('');
+    wordElement.style.setProperty('--jri-rsvp-word-scale', '1');
     wordElement.style.setProperty('--jri-rsvp-focus-half-width', `${focus.getBoundingClientRect().width / 2}px`);
     if (fitFrame !== null) cancelAnimationFrame(fitFrame);
     fitFrame = requestAnimationFrame(fitWord);
     displayedWord = word;
   };
   const scheduleWordUpdate = (): void => {
+    if (overlay.hidden) return;
     if (frame === null) frame = requestAnimationFrame(updateWord);
   };
+  let mobileLayout = isMobile();
+  const onViewportChange = (): void => {
+    const mobile = isMobile();
+    if (mobile !== mobileLayout) {
+      mobileLayout = mobile;
+      hasBeenDragged = false;
+      for (const property of ['top', 'right', 'bottom', 'left', 'transform']) overlay.style.removeProperty(property);
+    }
+    if (hasBeenDragged) {
+      const rect = overlay.getBoundingClientRect();
+      overlay.style.top = `${mobile ? constrainMobileTop(rect.top) : clampToViewport(rect.top, overlay.offsetHeight, window.innerHeight)}px`;
+      if (!mobile) overlay.style.left = `${clampToViewport(rect.left, overlay.offsetWidth, window.innerWidth)}px`;
+    } else {
+      separateFromControls();
+    }
+    displayedWord = null;
+    scheduleWordUpdate();
+  };
+  window.addEventListener('resize', onViewportChange);
+  window.visualViewport?.addEventListener('resize', onViewportChange);
+  window.visualViewport?.addEventListener('scroll', onViewportChange);
   const syncDock = (): void => {
     // A minimized toolbar must not change the RSVP overlay's placement.
     if (!bar.hidden) overlay.style.setProperty('--jri-controls-offset', `${bar.getBoundingClientRect().height}px`);
@@ -971,8 +1020,7 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
   const wordObserver = new MutationObserver(scheduleWordUpdate);
   wordObserver.observe(doc.body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   overlay.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || event.target === close || (event.target instanceof Element && event.target.closest('.jri-rsvp-close')))
-      return;
+    if (event.button !== 0 || (event.target instanceof Element && event.target.closest('button, .jri-rsvp-speed'))) return;
     if (isMobile()) {
       // Restore CSS-controlled full-width pinning before a mobile drag; a previous
       // desktop drag may have left absolute positioning behind.
@@ -1031,6 +1079,13 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
         updateWord();
       }
     },
+    setGuidedRate(rate) {
+      guidedRate = rate;
+      const label = `${rate.toFixed(1)}x`;
+      if (speedOutput.textContent !== label) speedOutput.textContent = label;
+      decreaseSpeed.disabled = rate <= 0.5;
+      increaseSpeed.disabled = rate >= 3;
+    },
     syncPosition: separateFromControls,
     getViewport: () => {
       if (overlay.hidden) return null;
@@ -1038,6 +1093,9 @@ function createRsvpControls(doc: Document, bar: HTMLDivElement, minimized: HTMLD
       return { top: rect.top, bottom: rect.bottom };
     },
     destroy() {
+      window.removeEventListener('resize', onViewportChange);
+      window.visualViewport?.removeEventListener('resize', onViewportChange);
+      window.visualViewport?.removeEventListener('scroll', onViewportChange);
       dockObserver.disconnect();
       overlayObserver.disconnect();
       wordObserver.disconnect();
@@ -1083,13 +1141,13 @@ function createToolbarControls(
   readingModes.append(guided, lightsOut, settings.readAloud);
   const minimize = addIconButton(doc, ICONS.minimize2, 'Minimize reading controls');
   minimize.classList.add('jri-minimize-controls');
-  const close = addIconButton(doc, ICONS.power, 'Disable Just Read It', () => {
+  const close = addIconButton(doc, ICONS.power, 'Disable Web Reader', () => {
     confirm.ask('Exit reading mode? Your progress is saved.', actions.close);
   });
   close.classList.add('jri-exit-button');
   const brand = doc.createElement('span');
   brand.className = 'jri-brand';
-  brand.textContent = 'Just Read It - Extension';
+  brand.textContent = 'Web Reader';
   const secondaryActions = doc.createElement('div');
   secondaryActions.className = 'jri-secondary-actions';
   toolbar.firstRow.append(
@@ -1177,6 +1235,7 @@ function updateReaderControls(
   toolbar.next.disabled = state.currentSentence === null || state.currentSentence >= state.totalSentences - 1;
   updateSpeedControl(settings.aloudSpeed, state.rate);
   updateSpeedControl(settings.guidedSpeed, state.guidedRate);
+  rsvp.setGuidedRate(state.guidedRate);
   settings.setVoiceURI(state.voiceURI);
   settings.setFontScale(state.fontScale);
   settings.decreaseFontSize.disabled = state.fontScale <= 0.5;

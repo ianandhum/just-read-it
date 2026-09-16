@@ -3,6 +3,8 @@ import type { ReadRange } from './types';
 const SHARED_PROGRESS_PREFIX = 'jri.v2.';
 const LEGACY_SHARED_PROGRESS_PREFIX = 'jri1.';
 const MAX_SHARED_PROGRESS_LENGTH = 16_384;
+// Bound expanded progress, not just the size of its compressed representation.
+export const MAX_PROGRESS_SENTENCES = 100_000;
 const BINARY_SHARED_PROGRESS_VERSION = 2;
 
 export interface SharedProgress {
@@ -64,6 +66,9 @@ function readVarint(bytes: Uint8Array, offset: number): { value: number; nextOff
 }
 
 function encodeBinarySharedProgress(progress: SharedProgress): string {
+  if (!Number.isSafeInteger(progress.total) || progress.total < 0 || progress.total > MAX_PROGRESS_SENTENCES) {
+    throw new RangeError('Reading progress exceeds the supported sentence limit.');
+  }
   const ranges = readIdsToRanges(progress.readIds, progress.total);
   const currentId =
     Number.isInteger(progress.currentId) && progress.currentId !== null && progress.currentId >= 0 && progress.currentId < progress.total
@@ -87,7 +92,7 @@ function decodeBinarySharedProgress(encoded: string): SharedProgress | null {
   if (!bytes || bytes[0] !== BINARY_SHARED_PROGRESS_VERSION) return null;
   let offset = 1;
   const total = readVarint(bytes, offset);
-  if (!total || total.value < 0) return null;
+  if (!total || total.value < 0 || total.value > MAX_PROGRESS_SENTENCES) return null;
   offset = total.nextOffset;
   const current = readVarint(bytes, offset);
   if (!current || current.value > total.value) return null;
@@ -128,8 +133,19 @@ export function readIdsToRanges(readIds: number[], total: number): ReadRange[] {
 }
 
 export function rangesToReadIds(ranges: ReadRange[], total: number): number[] {
+  if (!Number.isSafeInteger(total) || total < 0 || total > MAX_PROGRESS_SENTENCES) {
+    throw new RangeError('Reading progress exceeds the supported sentence limit.');
+  }
   const ids: number[] = [];
-  for (const [start, length] of ranges) {
+  for (const range of ranges) {
+    if (!Array.isArray(range) || range.length !== 2) throw new TypeError('Invalid reading progress range.');
+    const [start, length] = range;
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(length) || start < 0 || length < 1) {
+      throw new TypeError('Invalid reading progress range.');
+    }
+    if (ids.length + Math.max(0, Math.min(length, total - start)) > MAX_PROGRESS_SENTENCES) {
+      throw new RangeError('Reading progress exceeds the supported sentence limit.');
+    }
     for (let offset = 0; offset < length && start + offset < total; offset++) ids.push(start + offset);
   }
   return ids;
@@ -154,7 +170,7 @@ export function decodeSharedProgress(hash: string): SharedProgress | null {
     const value: unknown = JSON.parse(decoded);
     if (!Array.isArray(value) || value.length !== 3) return null;
     const [total, currentId, rawRanges] = value;
-    if (!Number.isSafeInteger(total) || total < 0 || !Array.isArray(rawRanges)) return null;
+    if (!Number.isSafeInteger(total) || total < 0 || total > MAX_PROGRESS_SENTENCES || !Array.isArray(rawRanges)) return null;
     const ranges: ReadRange[] = [];
     let previousEnd = 0;
     for (const rawRange of rawRanges) {

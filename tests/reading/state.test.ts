@@ -126,6 +126,18 @@ describe('createReadingSession', () => {
     session.destroy();
   });
 
+  it('clears the last current sentence even when earlier sentences remain unread', () => {
+    const doc = setupDoc();
+    const session = createReadingSession(makeSpans(doc, [0, 1, 2]), null);
+    session.setCurrent(2);
+
+    expect(session.moveNext()).toBeNull();
+    expect(session.getSnapshot()).toEqual({ total: 3, currentId: null, readIds: new Set([2]) });
+    expect(classes(doc, 2)).toBe('jri-sentence jri-read');
+    expect(session.isAnimating()).toBe(false);
+    session.destroy();
+  });
+
   it('dims all non-current sentences immediately when Auto Dimming is explicit', () => {
     const doc = setupDoc();
     const spans = makeSpans(doc, [0, 1, 2]);
@@ -235,6 +247,38 @@ describe('createReadingSession', () => {
     expect(session.prevWord()).toBe(true);
     expect(session.getCurrentId()).toBe(0);
     expect(first.querySelector('.jri-word-current')?.textContent).toBe('sentence');
+    session.destroy();
+  });
+
+  it('reports a change when the final guided word completes the article', () => {
+    const doc = setupDoc();
+    const span = makeSpan(doc, 0);
+    span.innerHTML = '<span class="jri-word">last</span>';
+    const session = createReadingSession([span], null);
+    session.setCurrent(0);
+    session.setWordFocus(true);
+
+    expect(session.nextWord()).toBe(true);
+    expect(session.getCurrentId()).toBeNull();
+    expect(session.isRead(0)).toBe(true);
+    expect(span.querySelector('.jri-word-current')).toBeNull();
+    expect(session.nextWord()).toBe(false);
+    session.destroy();
+  });
+
+  it('does not move backward from the first word of the first sentence', () => {
+    const doc = setupDoc();
+    const span = makeSpan(doc, 0);
+    span.innerHTML = '<span class="jri-word">first</span> <span class="jri-word">last</span>';
+    const session = createReadingSession([span], null);
+    session.setCurrent(0);
+    session.setWordFocus(true);
+    const timing = session.getSpeechTiming();
+
+    expect(session.prevWord()).toBe(false);
+    expect(session.getCurrentId()).toBe(0);
+    expect(span.querySelector('.jri-word-current')?.textContent).toBe('first');
+    expect(session.getSpeechTiming()).toEqual(timing);
     session.destroy();
   });
 

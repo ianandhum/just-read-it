@@ -1,6 +1,8 @@
-# Just Read It
+# Web Reader
 
-Just Read It makes long articles easier to read. It keeps you focused sentence by sentence, offers a distraction-free Rapid Serial Visual Presentation (RSVP) view, remembers your progress, and can read the remaining content aloud.
+Web Reader makes long articles easier to read. It keeps you focused sentence by sentence, offers a distraction-free Rapid Serial Visual Presentation (RSVP) view, remembers your progress, and can read the remaining content aloud.
+
+[![Web Reader highlighting an article sentence by sentence](images/screenshot-1.png)](images/screenshot-1.png)
 
 ## Features
 
@@ -17,7 +19,7 @@ Just Read It makes long articles easier to read. It keeps you focused sentence b
 ## How To Use
 
 1. Open a long-form article or other page you want to read.
-2. Open the Just Read It toolbar popup, right-click the page, or press `Alt+Shift+L` (`Command+Shift+L` on macOS).
+2. Open the Web Reader toolbar popup, right-click the page, or press `Alt+Shift+L` (`Command+Shift+L` on macOS).
 3. Select **Enable Reading Mode**.
 4. Use the controls on the page to navigate through the content.
 
@@ -39,7 +41,7 @@ Reading history is optional. Choose **Keep Reading History** in the popup to res
 
 ## Continue On Another Device
 
-Use the share button in the reader controls to copy a continuation link or scan its QR code. The link includes the article URL and your reading position in its fragment, so share it only with people or devices you trust. Just Read It must be installed on the receiving browser to restore the saved position.
+Use the share button in the reader controls to copy a continuation link or scan its QR code. The link includes the article URL and your reading position in its fragment, so share it only with people or devices you trust. Web Reader must be installed on the receiving browser to restore the saved position.
 
 ## Browser Support
 

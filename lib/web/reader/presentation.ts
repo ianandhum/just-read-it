@@ -8,7 +8,10 @@ export function removeReaderStyle(doc: Document): void {
   doc.documentElement.style.removeProperty('--jri-current-highlight');
   doc.documentElement.style.removeProperty('--jri-read-highlight');
   doc.documentElement.style.removeProperty('--jri-current-word-background');
+  doc.documentElement.style.removeProperty('--jri-current-word-shadow');
   doc.documentElement.style.removeProperty('--jri-current-sentence-mix');
+  doc.documentElement.style.removeProperty('--jri-current-sentence-text');
+  doc.documentElement.style.removeProperty('--jri-current-sentence-shadow');
 }
 
 function luminance(red: number, green: number, blue: number): number {
@@ -85,12 +88,20 @@ export function setCurrentWordContrast(
   const root = doc.documentElement;
   const background = theme === 'dark' ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor;
   root.style.setProperty('--jri-current-word-background', background);
+  root.style.setProperty('--jri-current-word-shadow', theme === 'dark' ? 'rgb(255 255 255 / 18%)' : 'rgb(0 0 0 / 18%)');
   const channels = parseColor(background);
   if (!channels) return;
   const backgroundLuminanceValue = luminance(...channels);
   const darkTextContrast = contrastRatio(backgroundLuminanceValue, luminance(23, 23, 23));
   const lightTextContrast = contrastRatio(backgroundLuminanceValue, 1);
   root.style.setProperty('--jri-current-word-color', lightTextContrast > darkTextContrast ? '#fff' : '#171717');
+}
+
+export function setCurrentSentenceContrast(doc: Document, theme: ReaderTheme): void {
+  // Keep the page's configured highlight intact while using a dependable text
+  // color for the active reading target.
+  doc.documentElement.style.setProperty('--jri-current-sentence-text', theme === 'dark' ? '#fff' : '#111');
+  doc.documentElement.style.setProperty('--jri-current-sentence-shadow', theme === 'dark' ? 'rgb(0 0 0 / 35%)' : 'rgb(255 255 255 / 35%)');
 }
 
 export function applyReaderFontScale(doc: Document, fontScale: number): void {
@@ -113,6 +124,7 @@ export function applyReaderAppearance(
   const theme = resolveReaderTheme(doc);
   doc.documentElement.style.setProperty('--jri-dimmed-opacity', String(settings.dimOpacity));
   doc.documentElement.style.setProperty('--jri-current-sentence-mix', theme === 'dark' ? 'white' : 'black');
+  setCurrentSentenceContrast(doc, theme);
   doc.documentElement.style.setProperty(
     '--jri-current-highlight',
     theme === 'dark' ? settings.darkCurrentHighlightColor : settings.currentHighlightColor,

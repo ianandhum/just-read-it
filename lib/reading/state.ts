@@ -387,7 +387,9 @@ export function createReadingSession(
         if (old !== null) render(old);
         return candidate;
       }
-      return old;
+      currentId = null;
+      if (old !== null) render(old);
+      return null;
     },
     advance() {
       const old = currentId;
@@ -442,7 +444,8 @@ export function createReadingSession(
           }
         }
         if (currentIndex === starts.length - 1) {
-          return this.moveNext() !== null;
+          this.moveNext();
+          return true;
         }
         setProgressInternal(Math.min(0.999999, starts[currentIndex + 1]! + 0.0001));
         return true;
@@ -460,8 +463,9 @@ export function createReadingSession(
         else break;
       }
       if (currentIndex === 0) {
+        const old = currentId;
         const previousId = this.prev();
-        if (previousId === null) return false;
+        if (previousId === null || previousId === old) return false;
         const previousStarts = wordStarts(previousId);
         const lastStart = previousStarts[previousStarts.length - 1] ?? 0;
         setProgressInternal(Math.min(0.999999, lastStart + 0.0001));

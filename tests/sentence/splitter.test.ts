@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { splitSentences } from '../../lib/sentence/splitter';
 
 function sentences(text: string): string[] {
@@ -37,6 +37,25 @@ describe('splitSentences', () => {
 
   it('handles Unicode sentence terminators', () => {
     expect(sentences('最初の文です。次の文です！最後です？')).toEqual(['最初の文です。', '次の文です！', '最後です？']);
+  });
+
+  it.each([false, true])('keeps a Japanese trailing fragment (fallback: %s)', (fallback) => {
+    if (fallback) vi.stubGlobal('Intl', { ...Intl, Segmenter: undefined });
+    try {
+      expect(sentences('最初の文です。次の文です')).toEqual(['最初の文です。', '次の文です']);
+      expect(sentences('最初の文です！次の文です？最後です')).toEqual(['最初の文です！', '次の文です？', '最後です']);
+      expect(sentences('Dr. Watson arrived. Still reading')).toEqual(['Dr. Watson arrived.', 'Still reading']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('retains native trimmed ranges for an unfinished final segment', () => {
+    expect(typeof Intl.Segmenter).toBe('function');
+    expect(splitSentences('最初の文です。次の文です  ')).toEqual([
+      { start: 0, end: 7 },
+      { start: 7, end: 12 },
+    ]);
   });
 
   it('handles initials and acronyms without splitting them apart', () => {

@@ -225,6 +225,10 @@ h2 {
   outline-offset: 2px;
 }
 
+.settings-reset {
+  margin-bottom: 24px;
+}
+
 .summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
