@@ -8,6 +8,7 @@ export function removeReaderStyle(doc: Document): void {
   doc.documentElement.style.removeProperty('--jri-current-highlight');
   doc.documentElement.style.removeProperty('--jri-read-highlight');
   doc.documentElement.style.removeProperty('--jri-current-word-background');
+  doc.documentElement.style.removeProperty('--jri-current-word-shadow');
   doc.documentElement.style.removeProperty('--jri-current-sentence-mix');
   doc.documentElement.style.removeProperty('--jri-current-sentence-text');
   doc.documentElement.style.removeProperty('--jri-current-sentence-shadow');
@@ -87,6 +88,7 @@ export function setCurrentWordContrast(
   const root = doc.documentElement;
   const background = theme === 'dark' ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor;
   root.style.setProperty('--jri-current-word-background', background);
+  root.style.setProperty('--jri-current-word-shadow', theme === 'dark' ? 'rgb(255 255 255 / 18%)' : 'rgb(0 0 0 / 18%)');
   const channels = parseColor(background);
   if (!channels) return;
   const backgroundLuminanceValue = luminance(...channels);

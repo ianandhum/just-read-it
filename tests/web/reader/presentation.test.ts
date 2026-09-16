@@ -23,6 +23,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   document.documentElement.style.removeProperty('--jri-current-word-background');
   document.documentElement.style.removeProperty('--jri-current-word-color');
+  document.documentElement.style.removeProperty('--jri-current-word-shadow');
   document.documentElement.style.removeProperty('--jri-current-sentence-mix');
   document.documentElement.style.removeProperty('--jri-current-sentence-text');
   document.documentElement.style.removeProperty('--jri-current-sentence-shadow');
@@ -37,6 +38,7 @@ describe('setCurrentWordContrast', () => {
 
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('#fdc57b');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-color')).toBe('#171717');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-shadow')).toBe('rgb(0 0 0 / 18%)');
   });
 
   it('uses the dark reader color for a dark website', () => {
@@ -46,6 +48,7 @@ describe('setCurrentWordContrast', () => {
 
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('#ffd8b0');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-color')).toBe('#171717');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-shadow')).toBe('rgb(255 255 255 / 18%)');
   });
 
   it('chooses light text for a dark configured word highlight', () => {
@@ -117,6 +120,7 @@ describe('removeReaderStyle', () => {
     document.documentElement.style.setProperty('--jri-font-scale', '1.2');
     document.documentElement.style.setProperty('--jri-current-word-background', '#fdc57b');
     document.documentElement.style.setProperty('--jri-current-word-color', '#171717');
+    document.documentElement.style.setProperty('--jri-current-word-shadow', 'rgb(0 0 0 / 18%)');
     document.documentElement.style.setProperty('--jri-current-sentence-mix', 'white');
     document.documentElement.style.setProperty('--jri-current-sentence-text', '#fff');
     document.documentElement.style.setProperty('--jri-current-sentence-shadow', 'rgb(0 0 0 / 35%)');
@@ -127,6 +131,7 @@ describe('removeReaderStyle', () => {
     expect(document.documentElement.style.getPropertyValue('--jri-font-scale')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-background')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-word-color')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-shadow')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-mix')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-text')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--jri-current-sentence-shadow')).toBe('');

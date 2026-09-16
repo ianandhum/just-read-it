@@ -1,5 +1,4 @@
 import type { ContentCandidateInfo, RuntimeMessage, JriSettings } from '@/lib/types';
-import confetti from 'canvas-confetti';
 import { DEFAULT_SETTINGS } from '@/lib/types';
 import { canAnnotateDocument, getContentCandidates, wrapSentencesAsync, type WrapResult } from '@/lib/sentence';
 import { createReadingSession, type ReadingSession, type ReadingStats } from '@/lib/reading';
@@ -70,6 +69,7 @@ export default defineContentScript({
     let fontScale = 1;
     let hasPerSiteFontScale = false;
     let didCelebrate = false;
+    let partyElement: HTMLElement | null = null;
     let partyTimer: ReturnType<typeof setTimeout> | null = null;
     let lightsOutEnabled = false;
     let normalLightsOutEnabled = false;
@@ -364,57 +364,63 @@ export default defineContentScript({
         clearTimeout(partyTimer);
         partyTimer = null;
       }
-      confetti.reset();
+      partyElement?.remove();
+      partyElement = null;
     }
 
     function showParty(): void {
       removeParty();
-      const colors = ['#ffc72f', '#ff4e4e', '#37bcff', '#78f945', '#8b4dff', '#ff8127'];
-      const statusRect = document.querySelector<HTMLElement>('.jri-reading-status')?.getBoundingClientRect();
-      const origin = statusRect
-        ? {
-          x: (statusRect.left + statusRect.width / 2) / window.innerWidth,
-          y: (statusRect.top + statusRect.height / 2) / window.innerHeight,
+      const party = document.createElement('div');
+      party.id = 'jri-party';
+      party.setAttribute('aria-hidden', 'true');
+      const colors = ['#ffcf4a', '#ff6b6b', '#5ec8ff', '#8ee36b', '#b58cff', '#ff9f5a'];
+      const launchX = window.innerWidth / 2;
+      const launchY = window.innerHeight + 8;
+
+      for (let burst = 0; burst < 3; burst++) {
+        const launchDelay = burst * 340;
+        const originX = launchX + (burst - 1) * Math.min(280, window.innerWidth * 0.28);
+        const originY = window.innerHeight * (burst === 1 ? 0.18 : 0.3);
+        const trail = document.createElement('span');
+        trail.className = 'jri-party-trail';
+        trail.style.left = `${Math.round(launchX)}px`;
+        trail.style.top = `${Math.round(launchY)}px`;
+        trail.style.setProperty('--jri-launch-x', `${originX - launchX}px`);
+        trail.style.setProperty('--jri-launch-y', `${originY - launchY}px`);
+        trail.style.setProperty('--jri-launch-angle', `${Math.atan2(originY - launchY, originX - launchX) + Math.PI / 2}rad`);
+        trail.style.setProperty('--jri-spark-color', colors[burst * 2]!);
+        trail.style.animationDelay = `${launchDelay}ms`;
+        trail.style.animationDuration = '940ms';
+        party.appendChild(trail);
+
+        const flash = document.createElement('span');
+        flash.className = 'jri-party-flash';
+        flash.style.left = `${Math.round(originX)}px`;
+        flash.style.top = `${Math.round(originY)}px`;
+        flash.style.animationDelay = `${launchDelay + 880}ms`;
+        party.appendChild(flash);
+
+        for (let ray = 0; ray < 32; ray++) {
+          const spark = document.createElement('span');
+          const angle = (Math.PI * 2 * ray) / 32 + (Math.random() - 0.5) * 0.1;
+          const distance = 170 + Math.random() * 190;
+          const sparkLength = 15 + Math.random() * 15;
+          spark.className = 'jri-party-spark';
+          spark.style.left = `${Math.round(originX)}px`;
+          spark.style.top = `${Math.round(originY)}px`;
+          spark.style.width = `${sparkLength}px`;
+          spark.style.setProperty('--jri-spark-x', `${Math.cos(angle) * distance}px`);
+          spark.style.setProperty('--jri-spark-y', `${Math.sin(angle) * distance + 18}px`);
+          spark.style.setProperty('--jri-spark-angle', `${angle}rad`);
+          spark.style.setProperty('--jri-spark-color', colors[(ray + burst * 2) % colors.length]!);
+          spark.style.animationDelay = `${launchDelay + 880 + Math.random() * 65}ms`;
+          spark.style.animationDuration = `${880 + Math.random() * 360}ms`;
+          party.appendChild(spark);
         }
-        : { x: 0.5, y: 0.9 };
-
-      const count = 300;
-      const defaults: confetti.Options = {
-        colors,
-        origin,
-        scalar: 1.3 
-      };
-
-      function fire(particleRatio: number, opts:confetti.Options) {
-        confetti({
-          ...defaults,
-          ...opts,
-          particleCount: Math.floor(count * particleRatio)
-        });
       }
-
-      fire(0.25, {
-        spread: 26,
-        startVelocity: 55,
-      });
-      fire(0.2, {
-        spread: 60,
-      });
-      fire(0.35, {
-        spread: 100,
-        decay: 0.91,
-        scalar: 0.8
-      });
-      fire(0.1, {
-        spread: 120,
-        startVelocity: 25,
-        decay: 0.92,
-        scalar: 1.2
-      });
-      fire(0.1, {
-        spread: 120,
-        startVelocity: 45,
-      });
+      document.body?.appendChild(party);
+      partyElement = party;
+      partyTimer = setTimeout(removeParty, 3600);
     }
 
     function markPreviousRead(): void {
