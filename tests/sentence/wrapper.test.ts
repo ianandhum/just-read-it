@@ -40,6 +40,52 @@ describe('wrapSentences', () => {
     expect(result.spans).toEqual([]);
   });
 
+  it('detects direct div prose and preserves inline markup when unwrapped', () => {
+    const doc = setupDoc('<main><div>A plain container holds <em>important prose</em>. Another sentence follows. One more finishes it.</div></main>');
+    const before = doc.body.innerHTML;
+    const result = wrapSentences(doc);
+    expect(sentenceTexts(doc)).toEqual(['A plain container holds important prose.', 'Another sentence follows.', 'One more finishes it.']);
+    result.unwrap();
+    expect(doc.body.innerHTML).toBe(before);
+  });
+
+  it('does not discard real prose because a layout class contains a broad negative hint', () => {
+    const doc = setupDoc('<main class="scroll-container"><article class="media-story"><p>This article is visible and should remain readable despite its layout classes.</p></article></main>');
+    const result = wrapSentences(doc);
+    expect(result.total).toBe(1);
+    expect(sentenceTexts(doc)[0]).toContain('This article is visible');
+  });
+
+  it('does not select article roots inside hidden or navigation ancestors', () => {
+    const doc = setupDoc('<div hidden><article id="hidden"><p>A hidden duplicate has many words, and should not compete with the article.</p></article></div><nav><article id="nav"><p>Navigation content must not become an article candidate.</p></article></nav><article id="visible"><p>Visible article content for reading.</p></article>');
+    const candidates = getContentCandidates(doc);
+    expect(candidates.some(({ id }) => id === 'id:hidden' || id === 'id:nav')).toBe(false);
+    expect(candidates[0]?.id).toBe('id:visible');
+  });
+
+  it('provides readable candidate titles and snippets without navigation text', () => {
+    const doc = setupDoc('<article><h1>A useful guide</h1><p>Start with the first small step.</p><nav><p>Private navigation label.</p></nav></article>');
+    const candidate = getContentCandidates(doc)[0]!;
+    expect(candidate.label).toBe('A useful guide');
+    expect(candidate.snippet).toContain('Start with the first small step.');
+    expect(candidate.snippet).not.toContain('Private navigation');
+    expect(candidate.wordCount).toBeGreaterThan(5);
+    expect(candidate.selector).toBe('article');
+  });
+
+  it('prefers an id selector for candidate labels', () => {
+    const doc = setupDoc('<main><section id="story"><div><p>This is a long enough sentence to score its ancestors.</p></div></section></main>');
+    const candidate = getContentCandidates(doc).find(({ element }) => element.id === 'story')!;
+    expect(candidate.selector).toBe('#story');
+  });
+
+  it('does not double wrap mixed direct prose and nested paragraphs', () => {
+    const doc = setupDoc('<article>Opening prose with enough text to be detected.<p>A nested paragraph.</p><div>A final direct prose block that should appear once.</div></article>');
+    wrapSentences(doc);
+    expect(sentenceTexts(doc)).toEqual(['Opening prose with enough text to be detected.', 'A nested paragraph.', 'A final direct prose block that should appear once.']);
+    expect(doc.querySelector('.jri-sentence .jri-sentence')).toBeNull();
+  });
+
   it('wraps a single-sentence paragraph', () => {
     const doc = setupDoc('<p>Hello world.</p>');
     const result = wrapSentences(doc);

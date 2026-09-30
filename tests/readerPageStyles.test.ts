@@ -10,7 +10,7 @@ describe('reader page styles', () => {
     expect(styles).toMatch(/\.jri-sentence\s*\{[^}]*padding:\s*0;/s);
     expect(styles).toMatch(/\.jri-word\s*\{[^}]*padding:\s*0;/s);
     expect(styles).toMatch(/\.jri-word\s*\{[^}]*box-decoration-break:\s*clone;/s);
-    expect(styles).toMatch(/\.jri-word\.jri-word-current\s*\{[^}]*0 0 0 0\.09em[^,]+,\s*0 0\.3em 0\.4em/s);
+    expect(styles).toMatch(/\.jri-word\.jri-word-current\s*\{[^}]*var\(--jri-current-word-lip, 2px\)/s);
   });
 
   it('renders consistent decoration for wrapped sentence fragments', () => {

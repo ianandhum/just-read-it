@@ -128,6 +128,72 @@ describe('rsvpFocusIndex', () => {
 });
 
 describe('RSVP controls', () => {
+  it('offers snippet-based choices and allows explicitly retrying the current section', () => {
+    const selectContentCandidate = vi.fn();
+    const pauseGuidedForSettings = vi.fn();
+    const controls = createReaderControls(document, '', actions({ selectContentCandidate, pauseGuidedForSettings }), controlState());
+    controls.setContentCandidates([
+      {
+        id: 'id:article',
+        label: 'A useful guide',
+        snippet: 'A preview with <b>literal markup</b>.',
+        wordCount: 120,
+        confidence: 100,
+        selected: true,
+        selector: '#article',
+      },
+    ]);
+    controls.openContentPicker();
+    const dialog = controls.root.querySelector<HTMLDialogElement>('.jri-content-picker')!;
+    expect(dialog.open).toBe(true);
+    expect(pauseGuidedForSettings).toHaveBeenCalled();
+    expect(dialog.querySelector('.jri-content-option-meta')?.textContent).toContain('#article');
+    expect(dialog.querySelector('.jri-content-option-meta')?.textContent).toContain('120 words');
+    expect(dialog.querySelector('.jri-content-option-snippet')?.textContent).toContain('<b>literal markup</b>');
+    expect(dialog.textContent).toContain('<b>literal markup</b>');
+    expect(dialog.querySelector('b')).toBeNull();
+    dialog.querySelector<HTMLButtonElement>('.jri-content-option')!.click();
+    expect(selectContentCandidate).toHaveBeenCalledExactlyOnceWith('id:article');
+    expect(dialog.open).toBe(false);
+    controls.destroy();
+  });
+
+  it('closes the content picker from its header close button', () => {
+    const controls = createReaderControls(document, '', actions(), controlState());
+    controls.setContentCandidates([{ id: 'id:article', label: 'A useful guide', snippet: 'Preview.', wordCount: 10, confidence: 100, selected: false }]);
+    controls.openContentPicker();
+    const dialog = controls.root.querySelector<HTMLDialogElement>('.jri-content-picker')!;
+    const close = vi.spyOn(dialog, 'close');
+    const button = dialog.querySelector<HTMLButtonElement>('.jri-content-picker-header .jri-content-picker-close')!;
+
+    expect(button.getAttribute('aria-label')).toBe('Close section chooser');
+    button.click();
+
+    expect(close).toHaveBeenCalledTimes(1);
+    controls.destroy();
+  });
+
+  it('explains how to recover when no sections contain readable text', () => {
+    const controls = createReaderControls(document, '', actions(), controlState());
+    controls.setContentCandidates([{ id: 'tag:body', label: 'Whole page', snippet: '', wordCount: 0, confidence: 0, selected: true }]);
+    controls.openContentPicker();
+    expect(controls.root.querySelector('.jri-content-options')!.textContent).toContain('load the article on the page');
+    expect(controls.root.querySelector('.jri-content-option')).toBeNull();
+    controls.destroy();
+  });
+
+  it('controls playback from the RSVP footer and reflects playback state', () => {
+    const toggleGuided = vi.fn();
+    const controls = createReaderControls(document, '', actions({ toggleGuided }), controlState({ rsvpEnabled: true }));
+    const playback = controls.root.querySelector<HTMLButtonElement>('.jri-rsvp-footer .jri-rsvp-playback')!;
+    playback.click();
+    expect(toggleGuided).toHaveBeenCalledOnce();
+    controls.update(controlState({ rsvpEnabled: true, guidedReading: true }));
+    expect(playback.getAttribute('aria-label')).toBe('Pause word focus playback');
+    expect(controls.root.querySelector('.jri-rsvp-header .jri-rsvp-close')).not.toBeNull();
+    controls.destroy();
+  });
+
   it('includes the current sentence in the reading status text', () => {
     const controls = createReaderControls(
       document,
@@ -435,6 +501,7 @@ describe('RSVP controls', () => {
     expect(buttons[0]?.title).toBe('Enable Guided Reading');
     expect(buttons[1]?.title).toBe('Turn Auto Dimming on');
     expect(buttons[2]?.title).toBe('Start reading aloud');
+    expect(buttons[3]?.title).toBe('Enable word focus (RSVP)');
     controls.destroy();
   });
 
@@ -464,9 +531,10 @@ describe('RSVP controls', () => {
     controls.update(controlState({ guidedReading: false, rsvpEnabled: true }));
 
     const overlay = controls.root.querySelector<HTMLElement>('#jri-rsvp-overlay')!;
-    const input = controls.root.querySelector<HTMLInputElement>('.jri-rsvp-control input')!;
+    const rsvpToggle = controls.root.querySelector<HTMLButtonElement>('.jri-rsvp-toggle')!;
     expect(overlay.hidden).toBe(false);
-    expect(input.checked).toBe(true);
+    expect(rsvpToggle.getAttribute('aria-pressed')).toBe('true');
+    expect(rsvpToggle.title).toBe('Disable word focus (RSVP)');
     controls.destroy();
   });
 
@@ -474,12 +542,11 @@ describe('RSVP controls', () => {
     const toggleRsvp = vi.fn();
     const toggleGuided = vi.fn();
     const controls = createReaderControls(document, '', actions({ toggleRsvp, toggleGuided }), controlState());
-    const input = controls.root.querySelector<HTMLInputElement>('.jri-rsvp-control input')!;
+    const rsvpToggle = controls.root.querySelector<HTMLButtonElement>('.jri-rsvp-toggle')!;
     const settings = controls.root.querySelector<HTMLDialogElement>('#jri-speed-popover')!;
     const close = vi.spyOn(settings, 'close');
 
-    input.checked = true;
-    input.dispatchEvent(new Event('change'));
+    rsvpToggle.click();
 
     expect(toggleRsvp).toHaveBeenCalledWith(true);
     expect(toggleGuided).not.toHaveBeenCalled();
@@ -520,7 +587,7 @@ describe('RSVP controls', () => {
     const controls = createReaderControls(document, '', actions({ markAllRead, close }), controlState());
     const buttons = Array.from(controls.root.querySelectorAll<HTMLButtonElement>('.jri-button'));
     const markAll = buttons.find((button) => button.title === 'Mark document as read')!;
-    const exit = buttons.find((button) => button.title === 'Disable Web Reader')!;
+    const exit = buttons.find((button) => button.title === 'Disable Just Read It')!;
     const cancel = () => controls.root.querySelector<HTMLButtonElement>('.jri-confirm-cancel')!.click();
     const submit = () => controls.root.querySelector<HTMLButtonElement>('.jri-confirm-submit')!.click();
 
@@ -550,6 +617,20 @@ describe('RSVP controls', () => {
     }
 
     expect(close).toHaveBeenCalledTimes(3);
+    controls.destroy();
+  });
+
+  it('closes reading settings from the header close button', () => {
+    const controls = createReaderControls(document, '', actions(), controlState());
+    const settings = controls.root.querySelector<HTMLDialogElement>('#jri-speed-popover')!;
+    const close = vi.spyOn(settings, 'close');
+    const button = controls.root.querySelector<HTMLButtonElement>('.jri-settings-header .jri-settings-close')!;
+
+    expect(button.getAttribute('aria-label')).toBe('Close reading settings');
+    expect(button.querySelector('.jri-icon')).not.toBeNull();
+    button.click();
+
+    expect(close).toHaveBeenCalledTimes(1);
     controls.destroy();
   });
 
@@ -638,7 +719,7 @@ describe('RSVP controls', () => {
     controls.destroy();
   });
 
-  it('fits long words into the measured space before the RSVP controls', async () => {
+  it('fits long words across the reading area with controls outside the word row', async () => {
     document.body.innerHTML = '<span class="jri-word jri-word-current">extraordinarily</span>';
     const controls = createReaderControls(document, '', actions(), controlState({ rsvpEnabled: true }));
     const overlay = controls.root.querySelector<HTMLElement>('#jri-rsvp-overlay')!;
@@ -650,7 +731,8 @@ describe('RSVP controls', () => {
       vi.spyOn(overlay.querySelector(`.jri-rsvp-${name}`)!, 'getBoundingClientRect').mockReturnValue(rect(24, 504));
     }
     await vi.advanceTimersByTimeAsync(32);
-    expect(overlay.querySelector<HTMLElement>('.jri-rsvp-word')!.style.getPropertyValue('--jri-rsvp-word-scale')).toBe('0.5');
+    const scale = Number(overlay.querySelector<HTMLElement>('.jri-rsvp-word')!.style.getPropertyValue('--jri-rsvp-word-scale'));
+    expect(scale).toBeCloseTo(208 / 336);
     controls.destroy();
   });
 
@@ -767,7 +849,7 @@ describe('progress sharing', () => {
     expect(popover.open).toBe(true);
     expect(popover.getAttribute('aria-label')).toBe('Continue reading on another device');
     expect(popover.querySelector('h2')?.textContent).toBe('Continue on another device');
-    expect(popover.querySelector('p')?.textContent).toContain('Web Reader should be enabled on the other device');
+    expect(popover.querySelector('p')?.textContent).toContain('Just Read It should be enabled on the other device');
     copy.click();
     expect(copyProgressUrl).toHaveBeenCalledWith('https://example.com/article#jri1.progress');
     expect(close).not.toHaveBeenCalled();

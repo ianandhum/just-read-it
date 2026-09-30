@@ -103,6 +103,43 @@ afterEach(() => {
 });
 
 describe('Home settings', () => {
+  it('previews and saves the current-word shadow lip', async () => {
+    input('word-shadow-lip', '4.5');
+    expect(document.getElementById('article-preview')!.style.getPropertyValue('--preview-word-lip')).toBe('4.5px');
+    expect(saveSettings).not.toHaveBeenCalled();
+    save();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(saveSettings).toHaveBeenCalledWith({ currentWordShadowLip: 4.5 });
+  });
+
+  it('switches the color editors along with the preview theme', async () => {
+    const mode = document.getElementById('preview-mode') as HTMLSelectElement;
+    mode.value = 'dark';
+    mode.dispatchEvent(new Event('change'));
+    expect(value('current-word-background-color')).toBe(DEFAULT_SETTINGS.darkCurrentWordBackgroundColor);
+    input('current-word-background-color', '#123456');
+    mode.value = 'light';
+    mode.dispatchEvent(new Event('change'));
+    expect(value('current-word-background-color')).toBe(DEFAULT_SETTINGS.currentWordBackgroundColor);
+    mode.value = 'dark';
+    mode.dispatchEvent(new Event('change'));
+    expect(value('current-word-background-color')).toBe('#123456');
+    save();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('keeps changes available for retry after a failed save', async () => {
+    vi.mocked(saveSettings).mockRejectedValueOnce(new Error('Storage unavailable'));
+    input('word-shadow-lip', '0');
+    save();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.getElementById('settings-save-status')!.textContent).toContain('Could not save');
+    expect((document.getElementById('save-settings') as HTMLButtonElement).hidden).toBe(false);
+    save();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(stored.currentWordShadowLip).toBe(0);
+  });
+
   it('shows Save changes for edits and does not write before it is clicked', async () => {
     input('dim-opacity', '40');
     const button = document.getElementById('save-settings') as HTMLButtonElement;

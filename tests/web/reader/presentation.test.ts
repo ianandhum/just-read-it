@@ -84,6 +84,12 @@ describe('resolveReaderTheme', () => {
 });
 
 describe('applyReaderAppearance', () => {
+  it('applies the saved shadow lip and removes it on teardown', () => {
+    applyReaderAppearance(document, { ...DEFAULT_SETTINGS, currentWordShadowLip: 4.5 });
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-lip')).toBe('4.5px');
+    removeReaderStyle(document);
+    expect(document.documentElement.style.getPropertyValue('--jri-current-word-lip')).toBe('');
+  });
   it('uses high-contrast text for the active sentence without changing the configured highlight', () => {
     document.body.style.backgroundColor = 'rgb(0, 0, 0)';
     applyReaderAppearance(document, DEFAULT_SETTINGS);

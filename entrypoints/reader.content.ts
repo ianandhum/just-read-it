@@ -39,6 +39,9 @@ declare global {
 }
 
 const SAVE_DEBOUNCE_MS = 500;
+// Below this many wrapped sentences, detection is treated as unsuitable and the
+// section picker is offered automatically so the user can point at the article.
+const MIN_READABLE_SENTENCES = 5;
 const CSS = `${accentCss}\n${readerCss}`.trim();
 
 export default defineContentScript({
@@ -809,10 +812,13 @@ export default defineContentScript({
         contentCandidateId = contentCandidates.some((candidate) => candidate.id === savedCandidate)
           ? (savedCandidate ?? undefined)
           : contentCandidates[0]?.id;
-        cachedContentCandidates = contentCandidates.map(({ id, label, confidence }) => ({
+        cachedContentCandidates = contentCandidates.map(({ id, label, confidence, snippet, wordCount, selector }) => ({
           id,
           label,
           confidence,
+          snippet,
+          wordCount,
+          selector,
           selected: id === contentCandidateId,
         }));
         controls?.setContentCandidates(cachedContentCandidates);
@@ -837,12 +843,14 @@ export default defineContentScript({
           await deactivateSession(true);
           return 0;
         }
-        if (wrap.total < 3) {
+        if (wrap.total < (savedCandidate ? 1 : MIN_READABLE_SENTENCES)) {
           const candidates = cachedContentCandidates;
           await teardownSession(true, undefined, true);
+          cachedContentCandidates = candidates;
           controls?.setContentCandidates(candidates);
           controls?.setVisible(true);
-          setStatus('No long-form readable content found.');
+          setStatus('Choose a section to start reading.');
+          controls?.openContentPicker();
           notifyState(false);
           return 0;
         }
@@ -930,7 +938,8 @@ export default defineContentScript({
     }
 
     function selectContentCandidate(candidateId: string): void {
-      if (candidateId === contentCandidateId) return;
+      if (candidateId === contentCandidateId && session) return;
+      if (!cachedContentCandidates.some((candidate) => candidate.id === candidateId)) return;
       const nextUrl = sessionUrl ?? location.href;
       void saveContentCandidate(nextUrl, candidateId)
         .then(async () => {

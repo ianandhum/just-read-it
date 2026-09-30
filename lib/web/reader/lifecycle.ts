@@ -216,7 +216,7 @@ export function createReaderLifecycle(context: ReaderLifecycleContext): {
         .then((total) => {
           const ready = total > 0 && context.isReaderReady();
           context.reportState(ready);
-          if (!ready) context.setStatus('Unable to restore reading progress.');
+           if (!ready && context.contentCandidates().length === 0) context.setStatus('Unable to restore reading progress.');
           return { ready };
         })
         .catch(() => {

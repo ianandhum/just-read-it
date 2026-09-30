@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Web Reader - Home</title>
+    <title>Just Read It - Home</title>
     <link rel="icon" type="image/png" href="/icons/just-read-it-32.png" />
     <link rel="stylesheet" href="./home.css" />
   </head>
@@ -13,7 +13,7 @@
         <div class="brand">
           <img class="brand-mark" src="/icons/just-read-it.png" alt="" />
           <div>
-            <p class="eyebrow">Web Reader</p>
+            <p class="eyebrow">Just Read It</p>
             <h1>Reading Stats</h1>
           </div>
         </div>
@@ -168,7 +168,7 @@
               <input id="history-unread-only" type="checkbox" />
               <span>Show only unread articles</span>
             </label>
-            <p id="empty" class="empty" hidden>No saved reading progress yet. Enable Web Reader on a long-form page to begin.</p>
+            <p id="empty" class="empty" hidden>No saved reading progress yet. Enable Just Read It on a long-form page to begin.</p>
             <p id="search-empty" class="empty" hidden>No saved pages match your filters.</p>
             <ol id="pages" class="reading-page-list"></ol>
             <nav id="history-pagination" class="pagination" aria-label="History pages" hidden>
@@ -180,31 +180,28 @@
         </section>
       </section>
       <section id="preferences-panel" class="tab-panel" role="tabpanel" aria-labelledby="preferences-tab" hidden>
-        <div class="reset-content settings-reset">
+        <div class="preferences-header">
           <div>
             <p class="eyebrow">Settings</p>
-            <p>Restore the preferences below to their default values.</p>
-          </div>
-          <div class="settings-actions">
-            <button id="save-settings" class="button" type="button" hidden>Save changes</button>
-            <button id="reset-settings" class="button" type="button">Reset to defaults</button>
+            <h2>Make reading your own</h2>
+            <p class="section-description">Fine-tune your focus, pacing, and narration. Preview changes before saving.</p>
           </div>
         </div>
         <div class="settings-layout">
-          <div class="settings-row">
+            <aside class="settings-preview">
             <article class="article-preview" id="article-preview" aria-labelledby="preview-heading">
               <h2 id="preview-heading">Live Preview</h2>
               <p class="article-kicker">A SMALL PRACTICE</p>
               <h3>Make room for the sentence you are in.</h3>
-              <p class="preview-sentence read">This sentence is already read, so its marked.</p>
+              <p class="preview-sentence read">Completed sentences stay gently marked as you move forward.</p>
               <p class="preview-sentence current">
                 Give the
                 <mark>current word</mark>
                 enough contrast to hold your attention.
               </p>
-              <p class="preview-sentence dimmed">Rest of the text can be dimmed or kept as is.</p>
+              <p class="preview-sentence dimmed">Surrounding text fades so you can stay with the thought in front of you.</p>
               <p class="preview-sentence dimmed">
-                You'd want to focus on the current sentence -- also more or less, the current word -- to keep your focus.
+                Find a balance that feels comfortable, then carry it into your next article.
               </p>
               <div class="preview-controls">
                 <label class="preview-toggle" for="preview-dimming">
@@ -217,6 +214,9 @@
                 </select>
               </div>
             </article>
+            <p class="field-help">The theme selector previews a light or dark website and selects which highlight colors you edit.</p>
+            </aside>
+          <div class="settings-fields">
             <section class="control-section" aria-labelledby="appearance-heading">
               <div class="settings-heading">
                 <p class="eyebrow">Appearance</p>
@@ -224,12 +224,12 @@
               </div>
               <label class="field range-field" for="dim-opacity">
                 <span>
-                  Auto-dimming opacity
+                  Surrounding text visibility
                   <output id="dim-opacity-value">42%</output>
                 </span>
                 <input id="dim-opacity" type="range" min="0" max="90" step="1" />
               </label>
-              <p class="field-help">How much surrounding sentences fade when Auto Dimming is active.</p>
+              <p class="field-help">Lower values fade surrounding sentences more when Auto Dimming is active.</p>
               <label class="field range-field" for="font-scale">
                 <span>
                   Default text size
@@ -252,12 +252,16 @@
                   <input id="current-word-background-color" type="color" />
                 </label>
               </div>
+              <label class="field range-field" for="word-shadow-lip">
+                <span>Current word shadow lip <output id="word-shadow-lip-value">2px</output></span>
+                <input id="word-shadow-lip" type="range" min="0" max="8" step="0.5" aria-describedby="word-shadow-lip-help" />
+              </label>
+              <p class="field-help" id="word-shadow-lip-help">Extra highlight spread around the current word. A small text-relative cushion remains at 0px.</p>
               <label class="field preview-toggle" for="completion-celebration-enabled">
                 <input id="completion-celebration-enabled" type="checkbox" />
-                <span>Show Confetti on Article Completion</span>
+                <span>Celebrate completed articles with confetti</span>
               </label>
             </section>
-          </div>
           <section class="control-section reading-controls" aria-label="Reading controls">
             <div class="reading-control-column" aria-labelledby="guided-heading">
               <div class="settings-heading">
@@ -278,6 +282,7 @@
                 </span>
                 <input id="advance-delay" type="range" min="0" max="3000" step="100" />
               </label>
+              <p class="field-help">Pause between sentences. Guided speed also sets your starting RSVP speed.</p>
             </div>
             <div class="reading-control-column" aria-labelledby="aloud-heading">
               <div class="settings-heading">
@@ -299,6 +304,14 @@
               </label>
             </div>
           </section>
+          </div>
+        </div>
+        <div class="preferences-save-bar">
+          <p id="settings-save-status" role="status">Preferences apply after saving.</p>
+          <div class="settings-actions">
+            <button id="reset-settings" class="button" type="button">Reset to defaults</button>
+            <button id="save-settings" class="button" type="button" hidden>Save changes</button>
+          </div>
         </div>
         <section class="settings-section" aria-labelledby="data-transfer-heading">
           <div>
