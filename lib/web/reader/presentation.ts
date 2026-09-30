@@ -9,6 +9,7 @@ export function removeReaderStyle(doc: Document): void {
   doc.documentElement.style.removeProperty('--jri-read-highlight');
   doc.documentElement.style.removeProperty('--jri-current-word-background');
   doc.documentElement.style.removeProperty('--jri-current-word-shadow');
+  doc.documentElement.style.removeProperty('--jri-current-word-lip');
   doc.documentElement.style.removeProperty('--jri-current-sentence-mix');
   doc.documentElement.style.removeProperty('--jri-current-sentence-text');
   doc.documentElement.style.removeProperty('--jri-current-sentence-shadow');
@@ -119,10 +120,12 @@ export function applyReaderAppearance(
     | 'darkReadHighlightColor'
     | 'currentWordBackgroundColor'
     | 'darkCurrentWordBackgroundColor'
+    | 'currentWordShadowLip'
   >,
 ): void {
   const theme = resolveReaderTheme(doc);
   doc.documentElement.style.setProperty('--jri-dimmed-opacity', String(settings.dimOpacity));
+  doc.documentElement.style.setProperty('--jri-current-word-lip', `${settings.currentWordShadowLip}px`);
   doc.documentElement.style.setProperty('--jri-current-sentence-mix', theme === 'dark' ? 'white' : 'black');
   setCurrentSentenceContrast(doc, theme);
   doc.documentElement.style.setProperty(

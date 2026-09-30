@@ -1143,13 +1143,49 @@ h2 {
 
 .settings-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.preferences-header {
+  margin-bottom: 24px;
+}
+
+.settings-fields {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
   gap: 16px;
 }
 
-.settings-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+.settings-preview {
+  grid-column: 2;
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+}
+
+.preferences-save-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  margin-top: 20px;
+  padding: 14px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 8%);
+}
+
+.preferences-save-bar p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
 
 .article-preview,
@@ -1231,6 +1267,8 @@ h2 {
   padding: 0 2px;
   color: #171717;
   background: var(--preview-word);
+  border-radius: 3px;
+  box-shadow: 0 0 0.5px calc(0.1em + var(--preview-word-lip, 2px)) var(--preview-word);
 }
 
 .preview-sentence.dimmed {
@@ -1250,6 +1288,7 @@ h2 {
 }
 
 .preview-controls {
+  flex-wrap: wrap;
   margin-top: auto;
   padding-top: 16px;
 }
@@ -1275,14 +1314,24 @@ h2 {
   margin: 0;
 }
 
+.reading-control-column {
+  min-width: 0;
+}
+
 .preview-mode,
 .field select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 38px;
+  box-sizing: border-box;
   padding: 0 32px 0 10px;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 9px;
   color: var(--foreground);
   background: var(--background);
+  text-overflow: ellipsis;
 }
 
 .control-section {
@@ -1408,8 +1457,15 @@ h2 {
     flex-direction: column;
   }
 
-  .settings-row {
+  .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .settings-preview,
+  .settings-fields {
+    position: static;
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .article-preview {
@@ -1418,6 +1474,14 @@ h2 {
 }
 
 @media (max-width: 600px) {
+  .preferences-save-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .preferences-save-bar .settings-actions {
+    flex-direction: row;
+  }
   .header {
     align-items: flex-start;
     flex-direction: column;

@@ -113,6 +113,12 @@ const POSITIVE_HINT = /article|body|content|entry|hentry|h-entry|main|page|pagin
 const NEGATIVE_HINT =
   /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/iu;
 const COMMAS = /\u002C|\u060C|\uFE50|\uFE10|\uFE11|\u2E41|\u2E34|\u2E32|\uFF0C/gu;
+// Scoring keeps every Readability hint, but hard exclusion drops the substrings
+// most likely to appear on genuine article containers (for example
+// "scroll-container", "media-story", or "article-meta").
+const HARD_NEGATIVE_HINT =
+  /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|contact|footer|gdpr|masthead|outbrain|promo|related|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/iu;
+const PROSE_CONTAINER_SELECTOR = 'div, section, article, main, [role="main"]';
 
 interface Candidate {
   score: number;
@@ -124,6 +130,9 @@ export interface ContentCandidate {
   label: string;
   confidence: number;
   element: Element;
+  snippet: string;
+  wordCount: number;
+  selector: string;
 }
 
 function hintWeight(el: Element): number {
@@ -134,10 +143,6 @@ function hintWeight(el: Element): number {
   return weight;
 }
 
-function hasNegativeHint(el: Element): boolean {
-  return NEGATIVE_HINT.test(`${el.className} ${el.id}`);
-}
-
 function isComment(el: Element): boolean {
   return el.classList.contains('comment') || el.id.startsWith('comment-');
 }
@@ -146,13 +151,31 @@ function isExcluded(el: Element): boolean {
   return (
     EXCLUDED_TAGS.has(el.tagName) ||
     el.matches(EXCLUDED_SELECTOR) ||
-    hasNegativeHint(el) ||
+    HARD_NEGATIVE_HINT.test(`${el.className} ${el.id}`) ||
     el.hasAttribute('hidden') ||
     el.getAttribute('aria-hidden') === 'true' ||
     el.hasAttribute('inert') ||
     (el.tagName === 'DETAILS' && !el.hasAttribute('open')) ||
     /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\s*(?:;|$)/iu.test(el.getAttribute('style') ?? '')
   );
+}
+
+function isInExcludedTree(el: Element): boolean {
+  for (let current: Element | null = el; current; current = current.parentElement) {
+    if (isExcluded(current)) return true;
+  }
+  return false;
+}
+
+function hasDirectProse(el: Element): boolean {
+  // Inline markup is fine; nested paragraph/container text is scored separately.
+  const text = Array.from(el.childNodes)
+    .filter((node) => node.nodeType === Node.TEXT_NODE ||
+      (node instanceof Element && !node.matches(`${BLOCK_SELECTOR}, ${PROSE_CONTAINER_SELECTOR}`) && !isExcluded(node) && !isCodeBlock(node)))
+    .map((node) => node.textContent ?? '')
+    .join('')
+    .trim();
+  return text.length >= 25;
 }
 
 function isCodeBlock(el: Element): boolean {
@@ -219,12 +242,33 @@ function candidateId(el: Element): string {
 }
 
 function candidateLabel(el: Element): string {
+  if (el === el.ownerDocument.body) return 'Whole page';
+  const heading = Array.from(el.querySelectorAll('h1, h2, h3')).find((heading) => !isInExcludedTree(heading));
+  const title = el.getAttribute('aria-label') || heading?.textContent;
+  if (title?.trim()) return title.replace(/\s+/gu, ' ').trim().slice(0, 100);
+  return el.tagName === 'ARTICLE' ? 'Article' : el.matches('main, [role="main"]') ? 'Main content' : 'Text section';
+}
+
+function candidateSelector(el: Element): string {
+  if (el === el.ownerDocument.body) return 'body';
   if (el.id) return `#${el.id}`;
-  const className = Array.from(el.classList)
+  const classes = Array.from(el.classList)
     .slice(0, 2)
     .map((name) => `.${name}`)
     .join('');
-  return `${el.tagName.toLowerCase()}${className}`;
+  return `${el.tagName.toLowerCase()}${classes}`;
+}
+
+function describeCandidate(element: Element, confidence: number): ContentCandidate {
+  const text = collectBlocks(element)
+    .flatMap((block) => collectTextNodes(block).map((node) => node.nodeValue ?? ''))
+    .join(' ').replace(/\s+/gu, ' ').trim();
+  return {
+    id: candidateId(element), label: candidateLabel(element), confidence, element,
+    snippet: text.length > 240 ? `${text.slice(0, 240).trimEnd()}…` : text,
+    wordCount: text ? text.split(/\s+/u).length : 0,
+    selector: candidateSelector(element),
+  };
 }
 
 export function getContentCandidates(doc: Document): ContentCandidate[] {
@@ -242,7 +286,7 @@ export function getContentCandidates(doc: Document): ContentCandidate[] {
   };
   const addCandidates = (selector: string, bonus: number): void => {
     for (const el of doc.querySelectorAll(selector)) {
-      if (!isExcluded(el) && !isComment(el)) {
+      if (!isInExcludedTree(el) && !isComment(el)) {
         ensureCandidate(el).manualBonus = Math.max(ensureCandidate(el).manualBonus, bonus);
       }
     }
@@ -254,8 +298,9 @@ export function getContentCandidates(doc: Document): ContentCandidate[] {
   addCandidates('article', 8);
   addCandidates('main, [role="main"]', 4);
 
-  for (const block of doc.querySelectorAll('section, h2, h3, h4, h5, h6, p, td')) {
-    if (isExcluded(block)) continue;
+  for (const block of doc.querySelectorAll('section, h2, h3, h4, h5, h6, p, td, div, article, main')) {
+    if (isInExcludedTree(block)) continue;
+    if (block.matches('div, article, main') && !hasDirectProse(block)) continue;
     const text = collectTextNodes(block)
       .map((node) => node.nodeValue ?? '')
       .join(' ')
@@ -263,6 +308,7 @@ export function getContentCandidates(doc: Document): ContentCandidate[] {
     if (text.length < 25) continue;
 
     const score = 1 + (text.match(COMMAS)?.length ?? 0) + Math.min(Math.floor(text.length / 100), 3);
+    if (block.matches(PROSE_CONTAINER_SELECTOR) && hasDirectProse(block)) ensureCandidate(block).score += score;
     let ancestor: Element | null = block.parentElement;
     for (let level = 0; ancestor && level < 5; level++, ancestor = ancestor.parentElement) {
       if (isExcluded(ancestor)) break;
@@ -276,14 +322,10 @@ export function getContentCandidates(doc: Document): ContentCandidate[] {
     .filter(({ element, score }) => score > 0 && collectBlocks(element).length > 0)
     .sort((a, b) => b.score - a.score);
   const bestScore = scored[0]?.score ?? 0;
-  const result = scored.slice(0, 8).map(({ element, score }) => ({
-    id: candidateId(element),
-    label: candidateLabel(element),
-    confidence: bestScore > 0 ? Math.round((score / bestScore) * 100) : 0,
-    element,
-  }));
+  const result = scored.slice(0, 8).map(({ element, score }) =>
+    describeCandidate(element, bestScore > 0 ? Math.round((score / bestScore) * 100) : 0));
   if (!result.some((candidate) => candidate.element === body)) {
-    result.push({ id: candidateId(body), label: 'body', confidence: 0, element: body });
+    result.push(describeCandidate(body, 0));
   }
   // Assign collision ordinals in document order, independent of scoring and
   // inserted sentence spans. Reserve legacy IDs before generating suffixes.
@@ -318,22 +360,16 @@ export function collectBlocks(root: Element): Element[] {
   const blocks: Element[] = [];
   const seen = new Set<Element>();
 
-  for (const block of root.querySelectorAll(BLOCK_SELECTOR)) {
-    if (seen.has(block) || isExcluded(block)) continue;
+  const selector = `${BLOCK_SELECTOR}, ${PROSE_CONTAINER_SELECTOR}`;
+  const candidates = [root, ...root.querySelectorAll(selector)];
+  for (const block of candidates) {
+    if (seen.has(block) || isInExcludedTree(block)) continue;
+    if (!block.matches(BLOCK_SELECTOR) && (!block.matches(PROSE_CONTAINER_SELECTOR) || !hasDirectProse(block))) continue;
 
-    let ancestor = block.parentElement;
-    let blocked = false;
-    while (ancestor && ancestor !== root) {
-      if (isExcluded(ancestor)) {
-        blocked = true;
-        break;
-      }
-      ancestor = ancestor.parentElement;
-    }
-    if (blocked || !isReadableBlock(block)) continue;
+    if (!isReadableBlock(block)) continue;
 
     blocks.push(block);
-    for (const nestedBlock of block.querySelectorAll(BLOCK_SELECTOR)) {
+    for (const nestedBlock of block.querySelectorAll(selector)) {
       seen.add(nestedBlock);
     }
   }

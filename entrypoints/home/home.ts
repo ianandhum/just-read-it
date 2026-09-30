@@ -62,6 +62,9 @@ const fontScaleValue = document.getElementById('font-scale-value') as HTMLOutput
 const currentColor = document.getElementById('current-highlight-color') as HTMLInputElement;
 const readColor = document.getElementById('read-highlight-color') as HTMLInputElement;
 const currentWordColor = document.getElementById('current-word-background-color') as HTMLInputElement;
+const wordShadowLip = document.getElementById('word-shadow-lip') as HTMLInputElement;
+const wordShadowLipValue = document.getElementById('word-shadow-lip-value') as HTMLOutputElement;
+const settingsStatus = document.getElementById('settings-save-status') as HTMLElement;
 const currentColorLabel = document.getElementById('current-color-label') as HTMLElement;
 const readColorLabel = document.getElementById('read-color-label') as HTMLElement;
 const currentWordColorLabel = document.getElementById('current-word-color-label') as HTMLElement;
@@ -117,6 +120,7 @@ function renderSettingsPreview(): void {
   preview.style.setProperty('--preview-current', dark ? settings.darkCurrentHighlightColor : settings.currentHighlightColor);
   preview.style.setProperty('--preview-read', dark ? settings.darkReadHighlightColor : settings.readHighlightColor);
   preview.style.setProperty('--preview-word', dark ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor);
+  preview.style.setProperty('--preview-word-lip', `${settings.currentWordShadowLip}px`);
   preview.classList.toggle('dark-preview', dark);
   preview.classList.toggle('dimming-disabled', !previewDimming.checked);
 }
@@ -127,6 +131,7 @@ function queueSettingsSave(patch: Partial<JriSettings>): void {
   settings = { ...settings, ...patch };
   renderSettingsPreview();
   saveSettingsElement.hidden = Object.keys(pendingSettings).length === 0;
+  settingsStatus.textContent = 'Unsaved changes';
 }
 
 function flushSettingsSave(): Promise<void> {
@@ -148,6 +153,7 @@ function flushSettingsSave(): Promise<void> {
     }
     await refreshSettings();
     saveSettingsElement.hidden = Object.keys(pendingSettings).length === 0;
+    settingsStatus.textContent = Object.keys(pendingSettings).length ? 'Unsaved changes' : 'Changes saved';
   });
   settingsWrite = write.catch(() => {});
   return write;
@@ -198,6 +204,8 @@ function renderSettingsForm(): void {
   currentColor.value = dark ? settings.darkCurrentHighlightColor : settings.currentHighlightColor;
   readColor.value = dark ? settings.darkReadHighlightColor : settings.readHighlightColor;
   currentWordColor.value = dark ? settings.darkCurrentWordBackgroundColor : settings.currentWordBackgroundColor;
+  wordShadowLip.value = String(settings.currentWordShadowLip);
+  wordShadowLipValue.textContent = `${settings.currentWordShadowLip}px`;
   currentColorLabel.textContent = `Current sentence (${dark ? 'dark' : 'light'})`;
   readColorLabel.textContent = `Completed sentence (${dark ? 'dark' : 'light'})`;
   currentWordColorLabel.textContent = `Current word (${dark ? 'dark' : 'light'})`;
@@ -467,7 +475,7 @@ function pageItem(state: PageState, variantClass = ''): HTMLLIElement {
       const page = new URL(state.url);
       const host = page.hostname;
       const continueInReader = window.confirm(
-        `Allow Web Reader to access ${host} so it can reopen this article in Reading Mode? You can open it normally instead.`,
+        `Allow Just Read It to access ${host} so it can reopen this article in Reading Mode? You can open it normally instead.`,
       );
       if (!continueInReader) {
         window.open(state.url, '_blank', 'noopener,noreferrer');
@@ -824,6 +832,11 @@ fontScale.addEventListener('input', () => {
   fontScaleValue.textContent = `${value.toFixed(1)}x`;
   queueSettingsSave({ fontScale: value });
 });
+wordShadowLip.addEventListener('input', () => {
+  const value = Number(wordShadowLip.value);
+  wordShadowLipValue.textContent = `${value}px`;
+  queueSettingsSave({ currentWordShadowLip: value });
+});
 currentColor.addEventListener('input', () =>
   queueSettingsSave(isDarkMode() ? { darkCurrentHighlightColor: currentColor.value } : { currentHighlightColor: currentColor.value }),
 );
@@ -855,7 +868,7 @@ rate.addEventListener('input', () => {
 });
 voice.addEventListener('change', () => queueSettingsSave({ voiceURI: voice.value || null }));
 previewDimming.addEventListener('change', renderSettingsPreview);
-previewMode.addEventListener('change', renderSettingsPreview);
+previewMode.addEventListener('change', renderSettingsForm);
 speechSynthesis?.addEventListener('voiceschanged', populateVoices);
 resetSettingsElement.addEventListener('click', async () => {
   if (!window.confirm('Reset the settings shown on this page?')) return;
@@ -868,6 +881,7 @@ resetSettingsElement.addEventListener('click', async () => {
     darkReadHighlightColor: DEFAULT_SETTINGS.darkReadHighlightColor,
     currentWordBackgroundColor: DEFAULT_SETTINGS.currentWordBackgroundColor,
     darkCurrentWordBackgroundColor: DEFAULT_SETTINGS.darkCurrentWordBackgroundColor,
+    currentWordShadowLip: DEFAULT_SETTINGS.currentWordShadowLip,
     guidedRate: DEFAULT_SETTINGS.guidedRate,
     guidedAdvanceDelay: DEFAULT_SETTINGS.guidedAdvanceDelay,
     completionCelebrationEnabled: DEFAULT_SETTINGS.completionCelebrationEnabled,
@@ -879,7 +893,12 @@ resetSettingsElement.addEventListener('click', async () => {
 
 saveSettingsElement.addEventListener('click', async () => {
   await withDisabled(saveSettingsElement, async () => {
-    await flushSettingsSave();
+    settingsStatus.textContent = 'Saving…';
+    try {
+      await flushSettingsSave();
+    } catch {
+      settingsStatus.textContent = 'Could not save. Your changes are still here; please try again.';
+    }
   });
 });
 

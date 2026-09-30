@@ -1,7 +1,7 @@
 {
   "name": "just-read-it",
-  "version": "0.3.2",
-  "description": "A web reader that makes long articles easier and more enjoyable to read.”",
+  "version": "0.3.3",
+  "description": "Stay focused with sentence highlighting, listen to articles aloud, and pick up where you left off.",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",

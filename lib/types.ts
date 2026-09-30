@@ -54,6 +54,7 @@ export interface JriSettings {
   darkReadHighlightColor: string;
   currentWordBackgroundColor: string;
   darkCurrentWordBackgroundColor: string;
+  currentWordShadowLip: number;
 }
 
 export interface JriPerSiteSettings {
@@ -80,6 +81,7 @@ export const DEFAULT_SETTINGS: JriSettings = {
   darkReadHighlightColor: '#86efac',
   currentWordBackgroundColor: '#fdc57b',
   darkCurrentWordBackgroundColor: '#ffd8b0',
+  currentWordShadowLip: 2,
 };
 
 export interface TabState {
@@ -94,6 +96,9 @@ export interface ContentCandidateInfo {
   label: string;
   confidence: number;
   selected: boolean;
+  snippet?: string;
+  wordCount?: number;
+  selector?: string;
 }
 
 export interface ToggleResult {

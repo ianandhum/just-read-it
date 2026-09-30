@@ -3,6 +3,7 @@ import { BrowserQRCodeSvgWriter } from '@zxing/browser';
 import { createDocking, type Docking } from './docking';
 import { createSvg } from '../svg';
 import { clampToViewport, mobileViewportBounds } from './viewport';
+import type { ContentCandidateInfo } from '../../types';
 
 export interface ReaderStatus {
   minutes: string;
@@ -37,7 +38,8 @@ export interface ReaderControls {
   openProgressShare(url: string): void;
   destroy(): void;
   setStatus(status: string, options?: { progress?: number; indefinite?: boolean }): void;
-  setContentCandidates(candidates: { id: string; label: string; confidence: number; selected: boolean }[]): void;
+  setContentCandidates(candidates: ContentCandidateInfo[]): void;
+  openContentPicker(): void;
   setTheme(theme: 'light' | 'dark'): void;
 }
 
@@ -108,6 +110,8 @@ const ICONS = {
   share:
     '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5"/>',
   star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+  rabbit:
+    '<path d="M13 16a3 3 0 0 1 2.24 5"/><path d="M18 12h.01"/><path d="M18 21h-8a4 4 0 0 1-4-4 7 7 0 0 1 7-7h.2L9.6 6.4a1 1 0 1 1 2.8-2.8L15.8 7h.2c3.3 0 6 2.7 6 6v1a2 2 0 0 1-2 2h-1a3 3 0 0 0-3 3"/><path d="M20 8.54V4a2 2 0 1 0-4 0v3"/><path d="M7.612 12.524a3 3 0 1 0-1.6 4.3"/>',
 } as const;
 
 function iconSvg(paths: string): SVGSVGElement {
@@ -130,7 +134,7 @@ function createReaderUiHost(doc: Document, css: string, theme: 'light' | 'dark')
   doc.getElementById('jri-ui-host')?.remove();
   const host = doc.createElement('div');
   host.id = 'jri-ui-host';
-  host.setAttribute('aria-label', 'Web Reader interface');
+  host.setAttribute('aria-label', 'Just Read It interface');
   host.dataset.readerTheme = theme;
   host.style.setProperty('all', 'initial', 'important');
   host.style.setProperty('position', 'fixed', 'important');
@@ -169,7 +173,7 @@ function createToolbar(doc: Document): {
   bar.id = CONTROLS_ID;
   bar.dataset.browser = navigator.userAgent.includes('Firefox') ? 'firefox' : 'chromium';
   bar.setAttribute('role', 'toolbar');
-  bar.setAttribute('aria-label', 'Web Reader controls');
+  bar.setAttribute('aria-label', 'Just Read It controls');
   const titleRow = doc.createElement('div');
   titleRow.className = 'jri-title-row';
   const firstRow = doc.createElement('div');
@@ -230,7 +234,7 @@ function createMinimizedControls(
   const icon = doc.createElement('img');
   icon.className = 'jri-minimized-icon';
   icon.src = browser.runtime.getURL('/icons/just-read-it-32.png');
-  icon.alt = 'Web Reader';
+  icon.alt = 'Just Read It';
   icon.addEventListener('error', () => icon.replaceWith(iconSvg(ICONS.extension)), { once: true });
   const guided = addIconButton(doc, ICONS.play, 'Enable Guided Reading', actions.toggleGuided);
   guided.classList.add('jri-minimized-guided');
@@ -283,7 +287,6 @@ function createControlGroup(doc: Document, className: string, label: string, con
 interface SettingsControls {
   popover: HTMLDialogElement;
   toggle: HTMLButtonElement;
-  rsvp: HTMLInputElement;
   readAloud: HTMLButtonElement;
   guidedSpeed: { input: HTMLInputElement; output: HTMLOutputElement };
   aloudSpeed: { input: HTMLInputElement; output: HTMLOutputElement };
@@ -294,11 +297,14 @@ interface SettingsControls {
   loadVoices(): void;
   setVoiceURI(voiceURI: string | null): void;
   setFontScale(fontScale: number): void;
-  setContentCandidates(candidates: { id: string; label: string; confidence: number; selected: boolean }[]): void;
+  setContentCandidates(candidates: ContentCandidateInfo[]): void;
+  contentPicker: HTMLDialogElement;
+  openContentPicker(): void;
 }
 
 interface RsvpControls {
   overlay: HTMLElement;
+  playback: HTMLButtonElement;
   setVisible(visible: boolean): void;
   setGuidedRate(rate: number): void;
   syncPosition(): void;
@@ -448,6 +454,7 @@ export function createReaderControls(
     setContentCandidates(candidates) {
       settings.setContentCandidates(candidates);
     },
+    openContentPicker: settings.openContentPicker,
     setTheme(theme) {
       host.dataset.readerTheme = theme;
     },
@@ -547,7 +554,6 @@ function createSettingsControls(
   popover.setAttribute('aria-label', 'Reading speed controls');
   const aloudSpeed = createSpeedControl(doc, 'Read Aloud', 'Read aloud speed', rate, actions.setRate);
   const guidedSpeed = createSpeedControl(doc, 'Guided Reading', 'Guided reading speed', guidedRate, actions.setGuidedRate, 3);
-  const { control: rsvpControl, input: rsvp } = createRsvpControl(doc, actions);
   const {
     control: fontSizeControl,
     decreaseFontSize,
@@ -556,7 +562,7 @@ function createSettingsControls(
     updateOutput: updateFontScaleOutput,
   } = createFontSizeControl(doc, actions, () => currentFontScale);
   const { control: voiceSection, select: voiceSelect, load: loadVoices } = createVoiceControl(doc, actions, () => currentVoiceURI);
-  const contentSection = createContentCandidateControl(doc, actions);
+  const content = createContentCandidateControl(doc, actions, () => popover.close());
   const themeSection = createReaderUiThemeControl(doc, readerUiTheme, actions);
   voiceSection.classList.add('jri-read-aloud-section');
   const home = addIconButton(doc, ICONS.layoutGrid, 'Open reading home', () => {
@@ -577,16 +583,13 @@ function createSettingsControls(
   const group = doc.createElement('div');
   group.className = 'jri-speed-group';
   group.append(
-    createSettingsHeader(doc),
-    createSettingsGroup(doc, 'Reading', contentSection, fontSizeControl, themeSection),
-    createSettingsGroup(doc, 'Guided Reading', guidedSpeed.control, rsvpControl, voiceSection, aloudSpeed.control),
+    createSettingsHeader(doc, () => popover.close()),
+    createSettingsGroup(doc, 'Reading', content.control, fontSizeControl, themeSection),
+    createSettingsGroup(doc, 'Guided Reading', guidedSpeed.control, voiceSection, aloudSpeed.control),
   );
   const actionsGroup = createSettingsGroup(doc, 'Actions', reset, markAll, home);
   actionsGroup.classList.add('jri-actions-group');
   group.append(actionsGroup);
-  const close = addButton(doc, 'Done', 'Close reading settings', () => popover.close());
-  close.classList.add('jri-settings-close');
-  group.append(close);
   popover.append(group);
   const refreshVoices = (): void => {
     loadVoices();
@@ -610,8 +613,9 @@ function createSettingsControls(
   popover.addEventListener('close', () => toggle.setAttribute('aria-expanded', 'false'));
   return {
     popover,
+    contentPicker: content.dialog,
+    openContentPicker: content.open,
     toggle,
-    rsvp,
     readAloud: addIconButton(doc, ICONS.volume2, 'Start reading aloud', actions.toggleReadAloud),
     guidedSpeed,
     aloudSpeed,
@@ -629,42 +633,83 @@ function createSettingsControls(
       updateFontScaleOutput();
     },
     setContentCandidates(candidates) {
-      contentSection.hidden = candidates.length < 2;
-      const select = contentSection.querySelector('select');
-      if (!(select instanceof HTMLSelectElement)) return;
-      select.replaceChildren();
-      for (const candidate of candidates) {
-        const option = new Option(
-          `${candidate.label} (${candidate.confidence}% match)`,
-          candidate.id,
-          candidate.selected,
-          candidate.selected,
-        );
-        select.append(option);
-      }
+      content.update(candidates);
     },
     destroy() {
+      content.dialog.close();
       speechSynthesis?.removeEventListener('voiceschanged', onVoicesChanged);
     },
   };
 }
 
-function createContentCandidateControl(doc: Document, actions: ControlActions): HTMLLabelElement {
-  const label = doc.createElement('label');
-  label.className = 'jri-content-candidate-control';
-  label.hidden = true;
-  label.textContent = 'Reading section';
-  const select = doc.createElement('select');
-  select.setAttribute('aria-label', 'Reading section');
-  select.addEventListener('change', () => {
-    const candidateId = select.value;
-    if (candidateId) actions.selectContentCandidate?.(candidateId);
-  });
-  label.append(select);
-  return label;
+function createContentCandidateControl(doc: Document, actions: ControlActions, beforeOpen: () => void) {
+  const dialog = doc.createElement('dialog');
+  dialog.className = 'jri-content-picker';
+  dialog.setAttribute('aria-labelledby', 'jri-content-picker-title');
+  dialog.setAttribute('aria-describedby', 'jri-content-picker-help');
+  const header = doc.createElement('div');
+  header.className = 'jri-content-picker-header';
+  const heading = doc.createElement('h2');
+  heading.id = 'jri-content-picker-title';
+  heading.textContent = 'Choose reading section';
+  const close = addIconButton(doc, ICONS.x, 'Close section chooser', () => dialog.close());
+  close.classList.add('jri-content-picker-close');
+  header.append(heading, close);
+  const help = doc.createElement('p');
+  help.className = 'jri-content-picker-help';
+  help.id = 'jri-content-picker-help';
+  help.textContent = 'Pick the section that matches the article. Whole page includes all eligible page text.';
+  const list = doc.createElement('div');
+  list.className = 'jri-content-options';
+  dialog.append(header, help, list);
+  const open = (): void => {
+    beforeOpen();
+    actions.pauseGuidedForSettings();
+    if (!dialog.open) dialog.showModal();
+    (list.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? close).focus();
+  };
+  const control = addButton(doc, 'Choose reading section…', 'Choose reading section', open);
+  control.classList.add('jri-content-candidate-control');
+  control.setAttribute('aria-haspopup', 'dialog');
+  return {
+    control, dialog, open,
+    update(candidates: ContentCandidateInfo[]) {
+      list.replaceChildren();
+      const readable = candidates.filter((candidate) => candidate.wordCount === undefined || candidate.wordCount > 0);
+      if (!readable.length) {
+        const empty = doc.createElement('p');
+        empty.className = 'jri-content-empty';
+        empty.textContent = 'No readable text is available yet. Expand or load the article on the page, then enable Just Read It again.';
+        list.append(empty);
+      }
+      for (const candidate of readable) {
+        const card = addButton(doc, '', `Read ${candidate.label}`, () => {
+          dialog.close();
+          actions.selectContentCandidate?.(candidate.id);
+        });
+        card.classList.add('jri-content-option');
+        if (candidate.selected) card.setAttribute('aria-current', 'true');
+        const title = doc.createElement('span');
+        title.className = 'jri-content-option-title';
+        title.textContent = candidate.label;
+        const metadata = doc.createElement('span');
+        metadata.className = 'jri-content-option-meta';
+        metadata.textContent = [
+          candidate.selected ? 'Current' : '',
+          candidate.selector ?? candidate.id,
+          candidate.wordCount === undefined ? '' : `~${candidate.wordCount.toLocaleString()} words`,
+        ].filter(Boolean).join(' · ');
+        const snippet = doc.createElement('span');
+        snippet.className = 'jri-content-option-snippet';
+        snippet.textContent = candidate.snippet || 'Preview unavailable. Choose this section to try it.';
+        card.append(title, metadata, snippet);
+        list.append(card);
+      }
+    },
+  };
 }
 
-function createSettingsHeader(doc: Document): HTMLDivElement {
+function createSettingsHeader(doc: Document, onClose: () => void): HTMLDivElement {
   const header = doc.createElement('div');
   header.className = 'jri-settings-header';
   const icon = doc.createElement('img');
@@ -673,12 +718,14 @@ function createSettingsHeader(doc: Document): HTMLDivElement {
   icon.alt = '';
   icon.addEventListener('error', () => icon.replaceWith(iconSvg(ICONS.extension)), { once: true });
   const brand = doc.createElement('span');
-  brand.textContent = 'Web Reader';
+  brand.textContent = 'Just Read It';
   const title = doc.createElement('h2');
   title.textContent = 'Reader View';
   const heading = doc.createElement('div');
   heading.append(brand, title);
-  header.append(icon, heading);
+  const close = addIconButton(doc, ICONS.x, 'Close reading settings', onClose);
+  close.classList.add('jri-settings-close');
+  header.append(icon, heading, close);
   return header;
 }
 
@@ -693,7 +740,7 @@ function createProgressShareControls(doc: Document, actions: ControlActions): { 
   heading.textContent = 'Continue on another device';
   const description = doc.createElement('p');
   description.textContent =
-    'Scan or copy this link to continue from the same place. Web Reader should be enabled on the other device to continue the reading.';
+    'Scan or copy this link to continue from the same place. Just Read It should be enabled on the other device to continue the reading.';
   const qr = doc.createElement('div');
   qr.className = 'jri-progress-share-qr';
   qr.setAttribute('role', 'img');
@@ -836,21 +883,6 @@ function createReaderUiThemeControl(doc: Document, theme: 'auto' | 'light' | 'da
   return label;
 }
 
-function createRsvpControl(doc: Document, actions: ControlActions) {
-  const control = doc.createElement('label');
-  control.className = 'jri-rsvp-control';
-  const text = doc.createElement('span');
-  text.textContent = 'Rapid Serial Visual Presentation';
-  const input = doc.createElement('input');
-  input.type = 'checkbox';
-  input.setAttribute('aria-label', 'Enable Rapid Serial Visual Presentation');
-  input.addEventListener('change', () => {
-    actions.toggleRsvp(input.checked);
-  });
-  control.append(text, input);
-  return { control, input };
-}
-
 function createRsvpControls(
   doc: Document,
   bar: HTMLDivElement,
@@ -875,6 +907,13 @@ function createRsvpControls(
   wordElement.append(prefix, focus, suffix);
   const close = addIconButton(doc, ICONS.x, 'Exit Rapid Serial Visual Presentation', () => actions.toggleRsvp(false));
   close.classList.add('jri-rsvp-close');
+  const header = doc.createElement('div');
+  header.className = 'jri-rsvp-header';
+  header.append(close);
+  const footer = doc.createElement('div');
+  footer.className = 'jri-rsvp-footer';
+  const playback = addIconButton(doc, ICONS.play, 'Start word focus playback', actions.toggleGuided);
+  playback.classList.add('jri-rsvp-playback');
   const speed = doc.createElement('div');
   speed.className = 'jri-rsvp-speed';
   speed.setAttribute('role', 'group');
@@ -891,8 +930,12 @@ function createRsvpControls(
   decreaseSpeed.disabled = guidedRate <= 0.5;
   increaseSpeed.disabled = guidedRate >= 3;
   speed.append(decreaseSpeed, speedOutput, increaseSpeed);
-  for (const control of [speed, close]) control.addEventListener('pointerdown', (event) => event.stopPropagation());
-  overlay.append(wordElement, speed, close);
+  const speedLabel = doc.createElement('span');
+  speedLabel.className = 'jri-rsvp-speed-label';
+  speedLabel.textContent = 'Session speed';
+  footer.append(playback, speedLabel, speed);
+  for (const control of [footer, close]) control.addEventListener('pointerdown', (event) => event.stopPropagation());
+  overlay.append(header, wordElement, footer);
   let frame: number | null = null;
   let fitFrame: number | null = null;
   let displayedWord: string | null = null;
@@ -954,8 +997,7 @@ function createRsvpControls(
     const wordRight = Math.max(...wordRects.map((rect) => rect.right));
     const anchor = overlayRect.left + overlayRect.width * 0.42;
     const availableLeft = Math.max(0, anchor - (overlayRect.left + 24));
-    const controlsLeft = Math.min(speed.getBoundingClientRect().left, close.getBoundingClientRect().left);
-    const availableRight = Math.max(0, controlsLeft - 12 - anchor);
+    const availableRight = Math.max(0, overlayRect.right - 24 - anchor);
     const wordLeftExtent = anchor - wordLeft;
     const wordRightExtent = wordRight - anchor;
     const scale = Math.min(
@@ -1070,6 +1112,7 @@ function createRsvpControls(
   syncDock();
   return {
     overlay,
+    playback,
     setVisible(visible) {
       const wasHidden = overlay.hidden;
       overlay.hidden = !visible;
@@ -1136,18 +1179,23 @@ function createToolbarControls(
   settings.readAloud.hidden = !speechAvailable;
   const lightsOut = addIconButton(doc, ICONS.spotlight, 'Turn Auto Dimming on', actions.toggleLightsOut);
   lightsOut.classList.add('jri-lights-out');
+  const rsvpToggle = addIconButton(doc, ICONS.rabbit, 'Enable word focus (RSVP)', () =>
+    actions.toggleRsvp(rsvpToggle.getAttribute('aria-pressed') !== 'true'),
+  );
+  rsvpToggle.classList.add('jri-rsvp-toggle');
+  rsvpToggle.setAttribute('aria-pressed', 'false');
   const readingModes = doc.createElement('div');
   readingModes.className = 'jri-reading-modes';
-  readingModes.append(guided, lightsOut, settings.readAloud);
+  readingModes.append(guided, lightsOut, settings.readAloud, rsvpToggle);
   const minimize = addIconButton(doc, ICONS.minimize2, 'Minimize reading controls');
   minimize.classList.add('jri-minimize-controls');
-  const close = addIconButton(doc, ICONS.power, 'Disable Web Reader', () => {
+  const close = addIconButton(doc, ICONS.power, 'Disable Just Read It', () => {
     confirm.ask('Exit reading mode? Your progress is saved.', actions.close);
   });
   close.classList.add('jri-exit-button');
   const brand = doc.createElement('span');
   brand.className = 'jri-brand';
-  brand.textContent = 'Web Reader';
+  brand.textContent = 'Just Read It';
   const secondaryActions = doc.createElement('div');
   secondaryActions.className = 'jri-secondary-actions';
   toolbar.firstRow.append(
@@ -1159,7 +1207,7 @@ function createToolbarControls(
   );
   toolbar.titleRow.append(brand);
   secondaryActions.append(settings.toggle, minimize);
-  root.append(toolbar.bar, settings.popover, progressShare.popover, rsvp.overlay);
+  root.append(toolbar.bar, settings.popover, settings.contentPicker, progressShare.popover, rsvp.overlay);
   return {
     drag,
     previous,
@@ -1167,6 +1215,7 @@ function createToolbarControls(
     navigationStatus,
     guided,
     lightsOut,
+    rsvpToggle,
     minimize,
   };
 }
@@ -1191,6 +1240,7 @@ function updateReaderControls(
   minimizedGuided: HTMLButtonElement,
 ): void {
   const guidedActive = state.guidedReading && !state.guidedReadingPaused;
+  updateIconButton(rsvp.playback, guidedActive, 'Pause word focus playback', 'Start word focus playback', ICONS.pause, ICONS.play, true);
   updateIconButton(
     toolbar.guided,
     guidedActive,
@@ -1209,7 +1259,15 @@ function updateReaderControls(
     ICONS.play,
     true,
   );
-  settings.rsvp.checked = state.rsvpEnabled;
+  updateIconButton(
+    toolbar.rsvpToggle,
+    state.rsvpEnabled,
+    'Disable word focus (RSVP)',
+    'Enable word focus (RSVP)',
+    ICONS.rabbit,
+    ICONS.rabbit,
+    true,
+  );
   rsvp.setVisible(state.rsvpEnabled && !state.complete);
   settings.readAloud.hidden = !state.speechAvailable;
   settings.readAloud.disabled = !state.speechAvailable;
